@@ -183,10 +183,6 @@
                              Style="background:#0d1a2e; border:1px solid #0d2137; border-radius:14px; overflow:hidden;">
                     <Columns>
 
-                        <PropertyColumn Property="x => x.TicketId" Title="Ticket ID"
-                                        HeaderStyle="white-space:nowrap;"
-                                        CellStyle="color:#00d4ff; font-family:monospace; font-size:12px; font-weight:700;" />
-
                         <PropertyColumn Property="x => x.QrapId" Title="QRAP ID"
                                         HeaderStyle="white-space:nowrap;"
                                         CellStyle="color:#e0eaf8; font-family:monospace; font-size:11px;" />
@@ -194,13 +190,9 @@
                         <PropertyColumn Property="x => x.CreationDate" Title="Created"
                                         Format="dd MMM yyyy HH:mm"
                                         HeaderStyle="white-space:nowrap;"
-                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
+                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:11px;" />
 
                         <PropertyColumn Property="x => x.Customer" Title="Customer"
-                                        HeaderStyle="white-space:nowrap;"
-                                        CellStyle="color:#e0eaf8; font-size:12px;" />
-
-                        <PropertyColumn Property="x => x.Process" Title="Process"
                                         HeaderStyle="white-space:nowrap;"
                                         CellStyle="color:#e0eaf8; font-size:12px;" />
 
@@ -265,12 +257,8 @@
                             </CellTemplate>
                         </TemplateColumn>
 
-                        <PropertyColumn Property="x => x.UpdatedDatetime" Title="Last Updated"
-                                        Format="dd MMM yyyy HH:mm"
-                                        HeaderStyle="white-space:nowrap;"
-                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
 
-                    </Columns>
+                        </Columns>
                     <PagerContent>
                         <MudDataGridPager T="LccQrqcTicketDto" PageSizeOptions="new[] { 10, 25, 50, 100 }" />
                     </PagerContent>
