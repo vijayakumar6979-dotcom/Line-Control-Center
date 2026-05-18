@@ -2,9 +2,11 @@
 
 @{
     var _panels     = _slides.SelectMany(s =>
-        s.Pages > 0
-            ? Enumerable.Range(1, s.Pages).Select(p => (Slide: s, Page: p))
-            : new[] { (Slide: s, Page: 0) }
+        s.VisiblePages != null
+            ? s.VisiblePages.Select(p => (Slide: s, Page: p))
+            : s.Pages > 0
+                ? Enumerable.Range(1, s.Pages).Select(p => (Slide: s, Page: p))
+                : new[] { (Slide: s, Page: 0) }
     ).ToList();
     var _panelCount = _panels.Count;
     var _ic         = System.Globalization.CultureInfo.InvariantCulture;
@@ -12,10 +14,14 @@
     var _offsetPct  = _activePanelIndex * (100.0 / _panelCount);
     var _curSlide   = _panels[_activePanelIndex].Slide;
     var _curPage    = _panels[_activePanelIndex].Page;
-    var _isPaged    = _curSlide.Pages > 0;
-    var _slideLabel = _isPaged
-                        ? $"{_curSlide.Title} — PAGE {_curPage} OF {_curSlide.Pages}"
-                        : _curSlide.Title;
+    var _isPaged        = _curSlide.Pages > 0 || _curSlide.VisiblePages != null;
+    var _visibleTotal   = _curSlide.VisiblePages?.Count ?? _curSlide.Pages;
+    var _visibleIndex   = _curSlide.VisiblePages != null
+                            ? (Array.IndexOf(_curSlide.VisiblePages.ToArray(), _curPage) + 1)
+                            : _curPage;
+    var _slideLabel     = _isPaged
+                            ? $"{_curSlide.Title} — PAGE {_curPage} ({_visibleIndex} OF {_visibleTotal})"
+                            : _curSlide.Title;
 }
 
 <style>
@@ -24,14 +30,6 @@
         inset: 0;
         overflow: hidden;
         background: #060d1f;
-    }
-    .bbq-pdf-panel embed {
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%;
-        height: 100%;
-        border: none;
-        display: block;
     }
     .bbq-nav-arrow {
         position: absolute;
@@ -58,6 +56,9 @@
         border-radius: 4px;
         cursor: pointer;
         transition: width 0.3s, background 0.3s, box-shadow 0.3s;
+    }
+    body, html {
+        overflow: hidden !important;
     }
 </style>
 
@@ -105,16 +106,17 @@
                             background:@(active ? "#00b4d820" : "transparent");
                             border:1px solid @(active ? "#00b4d855" : "#1a3a5c");
                             transition:all 0.15s;">
-                    <MudIcon Icon="@(slide.Pages > 0 ? Icons.Material.Filled.Slideshow : Icons.Material.Filled.Description)"
+                    <MudIcon Icon="@(slide.Pages > 0 || slide.VisiblePages != null ? Icons.Material.Filled.Slideshow : Icons.Material.Filled.Description)"
                              Style="@($"color:{(active ? "#00b4d8" : "#3d6b8a")}; font-size:13px;")" />
                     <span style="color:@(active ? "#00b4d8" : "#7ab3cc"); font-size:10px;
                                  font-weight:@(active ? "700" : "400"); letter-spacing:1px; white-space:nowrap;">
                         @slide.Title
                     </span>
-                    @if (slide.Pages > 0)
+                    @if (slide.Pages > 0 || slide.VisiblePages != null)
                     {
+                        var pgCount = slide.VisiblePages?.Count ?? slide.Pages;
                         <span style="color:@(active ? "#00b4d888" : "#3d6b8a88"); font-size:9px;">
-                            @slide.Pages<span style="font-size:7px; opacity:0.7;">pg</span>
+                            @pgCount<span style="font-size:7px; opacity:0.7;">pg</span>
                         </span>
                     }
                 </div>
@@ -176,13 +178,12 @@
                         will-change:transform;">
                 @foreach (var (slide, page) in _panels)
                 {
-                    var src = page > 0
-                        ? $"/briefings/{slide.File}#page={page}&toolbar=0&navpanes=0&scrollbar=0&view=Fit"
-                        : $"/briefings/{slide.File}#toolbar=0&navpanes=0&scrollbar=0&view=Fit";
                     <div style="width:@((100.0 / _panelCount).ToString("F4", _ic))%;
                                 flex-shrink:0; height:100%; position:relative; overflow:hidden;">
                         <div class="bbq-pdf-panel">
-                            <embed src="@src" type="application/pdf" />
+                            <PdfPageCanvas Url="@($"/briefings/{slide.File}")"
+                                           Page="@(page > 0 ? page : 1)"
+                                           Rotation="@GetRotation(slide, page > 0 ? page : 1)" />
                         </div>
                     </div>
                 }
@@ -199,11 +200,11 @@
                         backdrop-filter:blur(6px); pointer-events:none; z-index:5;">
                 <span style="color:#00b4d8; font-family:'Orbitron',sans-serif;
                              font-size:11px; font-weight:700; letter-spacing:1px;">
-                    @_curPage
+                    @_visibleIndex
                 </span>
                 <span style="color:#3d6b8a; font-size:10px;">/</span>
                 <span style="color:#7ab3cc; font-size:10px; letter-spacing:1px;">
-                    @_curSlide.Pages
+                    @_visibleTotal
                 </span>
             </div>
         }
@@ -269,9 +270,43 @@
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = default!;
 
-    // Pages = 0  → single document panel (scrollable)
-    // Pages = N  → N fixed panels, one per page — no scroll
-    private record SlideItem(string Title, string File, int Pages = 0);
+    // Pages = 0            → single document panel (scrollable)
+    // Pages = N            → N fixed panels, one per page — no scroll
+    // VisiblePages != null → use exactly these PDF page numbers (overrides Pages)
+    // Rotation             → file-level extra clockwise rotation (0/90/180/270) applied
+    //                        on top of the PDF's intrinsic /Rotate metadata.
+    // PageRotations        → optional per-page override map (1-based page → rotation
+    //                        in degrees). If a page is in this map, its value is used
+    //                        INSTEAD of the file-level Rotation.
+    private record SlideItem(string Title, string File, int Pages = 0,
+                             IReadOnlyList<int>? VisiblePages = null,
+                             int Rotation = 0,
+                             IReadOnlyDictionary<int, int>? PageRotations = null);
+
+    private static int GetRotation(SlideItem slide, int page)
+    {
+        if (slide.PageRotations != null && slide.PageRotations.TryGetValue(page, out var pageRot))
+            return pageRot;
+        return slide.Rotation;
+    }
+
+    // BBQ: always show page 1 + the single rotating daily page from 7–20.
+    // Pages 2–6 and 21+ are permanently skipped.
+    // 14-day cycle anchored to a fixed reference date:
+    //   anchor day 0  → page 7
+    //   anchor day 1  → page 8
+    //   ...
+    //   anchor day 13 → page 20
+    //   anchor day 14 → page 7  (repeats)
+    // To re-anchor the cycle (e.g. force "today = page 7"), update the anchor date below.
+    private static IReadOnlyList<int> BuildBbqPages()
+    {
+        var anchor  = new DateOnly(2025, 7, 14);   // ← day 0 of the cycle (shows page 7)
+        var today   = DateOnly.FromDateTime(DateTime.Today);
+        int elapsed = today.DayNumber - anchor.DayNumber;
+        int offset  = ((elapsed % 14) + 14) % 14; // always 0–13, handles dates before anchor
+        return [7 + offset];
+    }
 
     private readonly List<SlideItem> _slides =
     [
@@ -279,7 +314,8 @@
         new("P1 INCIDENT MAPPING",     "P1_Incident_Mapping.pdf"),
         new("P2 INCIDENT MAPPING",     "P2_Incident_Mapping.pdf"),
         new("BK INCIDENT MAPPING",     "BK_Incident_Mapping.pdf"),
-        new("BBQ",                     "BBQ.pdf"),
+        new("BK INTRO",     "BBQ-1.pdf"),
+        new("BBQ",                     "BBQ.pdf", VisiblePages: BuildBbqPages()),
     ];
 
     private int  _activePanelIndex = 0;
@@ -289,9 +325,11 @@
     private void GoToPanel(int idx)
     {
         var total = _slides.SelectMany(s =>
-            s.Pages > 0
-                ? Enumerable.Range(1, s.Pages).Select(p => (s, p))
-                : new[] { (s, 0) }
+            s.VisiblePages != null
+                ? s.VisiblePages.Select(p => (s, p))
+                : s.Pages > 0
+                    ? Enumerable.Range(1, s.Pages).Select(p => (s, p))
+                    : new[] { (s, 0) }
         ).Count();
         if (idx >= 0 && idx < total)
             _activePanelIndex = idx;

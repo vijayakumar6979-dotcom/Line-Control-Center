@@ -300,10 +300,51 @@ else
             </div>
         </div>
     }
-    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4" Style="padding-bottom:70px;">
 
-        @* ── Info Cards Row ── *@
-        <DashboardInfoRow Filter="@_filter" />
+        @* ── Info Cards Row + Briefing Button ── *@
+        <div style="display:flex; align-items:stretch; gap:12px; margin-bottom:0;">
+
+            @* Briefing button — sits before the customer card info row *@
+            @{
+                var bColor = _briefingViewed ? "#22c55e" : "#ff3b3b";
+            }
+            <MudTooltip Text="@(_briefingViewed ? "Briefing Completed ✓" : "Briefing Not Viewed — Click to View")"
+                        Placement="Placement.Bottom" Arrow="true">
+                <div style="position:relative; display:inline-flex; align-self:stretch; flex-shrink:0;">
+                    <button @onclick="OpenBriefing"
+                            style="display:flex; align-items:center; justify-content:center;
+                                   width:80px; height:100%; min-height:60px;
+                                   background:@(bColor)18;
+                                   border:2px solid @(bColor)55;
+                                   border-radius:14px;
+                                   color:@bColor;
+                                   box-shadow:0 0 18px @(bColor)44;
+                                   cursor:pointer;
+                                   transition:background 0.2s, border-color 0.2s, box-shadow 0.2s;
+                                   padding:0;">
+                        <MudIcon Icon="@Icons.Material.Filled.CastForEducation"
+                                 Style="@($"color:{bColor}; font-size:32px;")" />
+                    </button>
+                    @if (_briefingViewed)
+                    {
+                        <div style="position:absolute; top:-5px; right:-5px;
+                                    width:18px; height:18px; border-radius:50%;
+                                    background:#22c55e; border:2px solid #0d1f3c;
+                                    display:flex; align-items:center; justify-content:center;
+                                    box-shadow:0 0 8px #22c55e88;
+                                    pointer-events:none;">
+                            <MudIcon Icon="@Icons.Material.Filled.Check"
+                                     Style="color:#fff; font-size:10px;" />
+                        </div>
+                    }
+                </div>
+            </MudTooltip>
+
+            <div style="flex:1; min-width:0;">
+                <DashboardInfoRow Filter="@_filter" />
+            </div>
+        </div>
 
         @if (_loading)
         {
@@ -442,7 +483,7 @@ else
         }
 
         @* ── Page Footer ── *@
-        <div style="position:sticky; bottom:0; z-index:100;
+        <div style="position:fixed; bottom:0; left:0; right:0; z-index:100;
                     background:linear-gradient(0deg,#060d1f 80%,transparent);
                     border-top:1px solid #1a3a5c44;
                     padding:10px 24px;
@@ -450,31 +491,6 @@ else
 
             @* ── Left: action buttons ── *@
             <div style="display:flex; align-items:center; gap:8px;">
-                <MudTooltip Text="@(_briefingViewed ? "Briefing Completed ✓" : "Briefing Not Viewed — Click to View")"
-                            Placement="Placement.Top" Arrow="true">
-                    @{
-                        var bColor = _briefingViewed ? "#22c55e" : "#ff3b3b";
-                        var bStyle = $"color:{bColor}; background:{bColor}18; border:1px solid {bColor}44; border-radius:10px; transition:background 0.2s, border-color 0.2s; box-shadow:0 0 10px {bColor}33;";
-                    }
-                    <div style="position:relative; display:inline-flex;">
-                        <MudIconButton Icon="@Icons.Material.Filled.CastForEducation"
-                                       Size="MudSize.Medium"
-                                       Style="@bStyle"
-                                       OnClick="OpenBriefing" />
-                        @if (_briefingViewed)
-                        {
-                            <div style="position:absolute; top:-4px; right:-4px;
-                                        width:14px; height:14px; border-radius:50%;
-                                        background:#22c55e; border:2px solid #0d1f3c;
-                                        display:flex; align-items:center; justify-content:center;
-                                        box-shadow:0 0 6px #22c55e88;
-                                        pointer-events:none;">
-                                <MudIcon Icon="@Icons.Material.Filled.Check"
-                                         Style="color:#fff; font-size:9px;" />
-                            </div>
-                        }
-                    </div>
-                </MudTooltip>
                 <MudTooltip Text="User Guide" Placement="Placement.Top" Arrow="true">
                     <MudIconButton Icon="@Icons.Material.Filled.MenuBook"
                                    Size="MudSize.Medium"
