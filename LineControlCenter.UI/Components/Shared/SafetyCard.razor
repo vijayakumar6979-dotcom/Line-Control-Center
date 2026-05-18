@@ -33,27 +33,7 @@
                 </MudText>
             </div>
         </MudStack>
-        @{
-            var badgeColor = DaysSinceLastIncident >= 90 ? "#22c55e"
-                           : DaysSinceLastIncident >= 30 ? "#f59e0b"
-                                                         : "#ff3b3b";
-            var badgeText  = DaysSinceLastIncident >= 90 ? "ALL CLEAR"
-                           : DaysSinceLastIncident >= 30 ? "MONITOR"
-                                                         : "ALERT";
-        }
-        <div style="border:1px solid @(badgeColor)44;
-                    background:@(badgeColor)0c;
-                    border-radius:20px; padding:5px 14px;
-                    display:flex; align-items:center; gap:6px;">
-            <div class="safety-status-dot"
-                 style="background:@badgeColor;
-                        box-shadow:0 0 8px @badgeColor;"></div>
-            <span style="color:@badgeColor; font-size:10px;
-                         font-weight:700; letter-spacing:2px;">
-                @badgeText
-            </span>
         </div>
-    </div>
 
     @* Error banner *@
     @if (LoadError != null)
@@ -108,12 +88,12 @@
                         letter-spacing:2px; margin-bottom:4px;">
                 DAYS W/O INCIDENT
             </div>
-            <div style="color:@StatusColor;
+            <div style="color:#22c55e;
                         font-size:clamp(22px,3vw,36px);
                         font-weight:900;
                         font-family:'Orbitron',sans-serif;
                         line-height:1;
-                        text-shadow:0 0 18px @(StatusColor)55;">
+                        text-shadow:0 0 18px #22c55e55;">
                 @days
             </div>
         </div>
