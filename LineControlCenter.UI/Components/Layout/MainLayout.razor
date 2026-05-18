@@ -171,13 +171,21 @@
                                 <div style="color:#7ab3cc; font-size:9px; letter-spacing:1px; margin-bottom:6px;">
                                     BACKEND — SOMS
                                 </div>
-                                <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                                                   Size="MudSize.Small"
+                                                   Style="color:#00d4ff; border:1px solid #00d4ff40; border-radius:6px; width:26px; height:26px; min-width:26px; flex-shrink:0;"
+                                                   OnClick="@(() => ApplySomsZoom(Math.Round(Math.Max(0.3, _somsZoomEdit - 0.05), 2)))" />
                                     <MudSlider Value="_somsZoomEdit"
                                                Min="0.3" Max="2.0" Step="0.05"
                                                Style="flex:1;"
                                                Color="Color.Info"
                                                Immediate="true"
                                                ValueChanged="@((double v) => ApplySomsZoom(v))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                                   Size="MudSize.Small"
+                                                   Style="color:#00d4ff; border:1px solid #00d4ff40; border-radius:6px; width:26px; height:26px; min-width:26px; flex-shrink:0;"
+                                                   OnClick="@(() => ApplySomsZoom(Math.Round(Math.Min(2.0, _somsZoomEdit + 0.05), 2)))" />
                                     <span style="color:#00d4ff; font-size:10px; font-weight:700;
                                                  font-family:monospace; min-width:36px; text-align:right;">
                                         @(_somsZoomEdit.ToString("F2"))×
@@ -190,13 +198,21 @@
                                 <div style="color:#7ab3cc; font-size:9px; letter-spacing:1px; margin-bottom:6px;">
                                     RISK AND LEARNING
                                 </div>
-                                <div style="display:flex; align-items:center; gap:8px;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                                                   Size="MudSize.Small"
+                                                   Style="color:#f59e0b; border:1px solid #f59e0b40; border-radius:6px; width:26px; height:26px; min-width:26px; flex-shrink:0;"
+                                                   OnClick="@(() => ApplyRiskZoom(Math.Round(Math.Max(0.3, _riskZoomEdit - 0.05), 2)))" />
                                     <MudSlider Value="_riskZoomEdit"
                                                Min="0.3" Max="2.0" Step="0.05"
                                                Style="flex:1;"
                                                Color="Color.Warning"
                                                Immediate="true"
                                                ValueChanged="@((double v) => ApplyRiskZoom(v))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                                                   Size="MudSize.Small"
+                                                   Style="color:#f59e0b; border:1px solid #f59e0b40; border-radius:6px; width:26px; height:26px; min-width:26px; flex-shrink:0;"
+                                                   OnClick="@(() => ApplyRiskZoom(Math.Round(Math.Min(2.0, _riskZoomEdit + 0.05), 2)))" />
                                     <span style="color:#f59e0b; font-size:10px; font-weight:700;
                                                  font-family:monospace; min-width:36px; text-align:right;">
                                         @(_riskZoomEdit.ToString("F2"))×

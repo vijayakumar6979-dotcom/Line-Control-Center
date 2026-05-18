@@ -40,11 +40,10 @@
                     class="bay-iframe"
                     scrolling="no"
                     style="position:absolute; top:0; left:0;
-                           width:111.11%; height:100%;
+                           width:100%; height:100%;
                            border:none; scrollbar-width:none;
                            pointer-events:none;
-                           transform:scale(@RefreshState.SomsZoom.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-                           transform-origin:top left;"
+                           zoom:@RefreshState.SomsZoom.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);"
                     title="Bay B2M Top Live View">
             </iframe>
             @* Overlay: blocks iframe interaction but opens the REAL upstream SOMS feed directly in a new tab on click. *@
