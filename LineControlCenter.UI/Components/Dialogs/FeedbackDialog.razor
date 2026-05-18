@@ -1,0 +1,289 @@
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.Application.Interfaces
+@using LineControlCenter.UI.Services
+@using MudBlazor
+@using Variant = MudBlazor.Variant
+@inject IFeedbackService FeedbackService
+@inject IAdUserService AdUserService
+@inject UserSessionService UserSession
+@inject IConfiguration Configuration
+
+<MudDialog Style="background:#0a1628; border-radius:20px; overflow:hidden;">
+    <DialogContent>
+        <div style="background:linear-gradient(160deg,#060d1f 0%,#0a1628 100%);
+                    display:flex; flex-direction:column; overflow:hidden;">
+
+            @* ── Header ── *@
+            <div style="background:linear-gradient(90deg,#0d1f3c,#0a1628);
+                        border-bottom:1px solid #1a3a5c;
+                        padding:16px 24px;
+                        display:flex; align-items:center; justify-content:space-between;
+                        flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:40px; height:40px; border-radius:12px;
+                                background:linear-gradient(135deg,#aa55ff18,#aa55ff08);
+                                border:1px solid #aa55ff33;
+                                display:flex; align-items:center; justify-content:center;
+                                box-shadow:0 0 20px #aa55ff18;">
+                        <MudIcon Icon="@Icons.Material.Filled.Feedback"
+                                 Style="color:#aa55ff; font-size:20px;" />
+                    </div>
+                    <div>
+                        <div style="font-family:'Orbitron',sans-serif; font-size:13px;
+                                    font-weight:900; color:#e8f4f8; letter-spacing:3px;">
+                            SEND FEEDBACK
+                        </div>
+                        <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-top:2px;">
+                            LINE CONTROL CENTER — YOUR INPUT HELPS US IMPROVE
+                        </div>
+                    </div>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Size="MudSize.Small"
+                               Style="color:#e8f4f8; background:#0d1f3c; border:1px solid #1a3a5c;
+                                      border-radius:10px; width:36px; height:36px;"
+                               OnClick="Cancel" />
+            </div>
+
+            @* ── Body ── *@
+            <div style="padding:24px 28px; display:flex; flex-direction:column; gap:20px;">
+
+                @if (_submitted)
+                {
+                    @* ── Success state ── *@
+                    <div style="display:flex; flex-direction:column; align-items:center;
+                                justify-content:center; padding:40px 20px; gap:16px; text-align:center;">
+                        <div style="width:64px; height:64px; border-radius:50%;
+                                    background:#22c55e18; border:2px solid #22c55e44;
+                                    display:flex; align-items:center; justify-content:center;
+                                    box-shadow:0 0 30px #22c55e22;">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                     Style="color:#22c55e; font-size:36px;" />
+                        </div>
+                        <div style="font-family:'Orbitron',sans-serif; font-size:14px;
+                                    font-weight:800; color:#22c55e; letter-spacing:2px;">
+                            FEEDBACK SENT
+                        </div>
+                        <div style="color:#7ab3cc; font-size:12px; line-height:1.6; max-width:320px;">
+                            Thank you! Your feedback has been sent to the admin. We appreciate you helping us improve.
+                        </div>
+                        <MudButton Variant="Variant.Outlined"
+                                   Style="color:#aa55ff; border-color:#aa55ff44; margin-top:8px;"
+                                   OnClick="Cancel">Close</MudButton>
+                    </div>
+                }
+                else if (_sending)
+                {
+                    <div style="display:flex; flex-direction:column; align-items:center;
+                                justify-content:center; padding:60px 20px; gap:16px;">
+                        <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" />
+                        <div style="color:#7ab3cc; font-size:11px; letter-spacing:2px;">SENDING FEEDBACK…</div>
+                    </div>
+                }
+                else
+                {
+                    @* ── Category ── *@
+                    <div>
+                        <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px;
+                                    font-weight:700; margin-bottom:10px;">CATEGORY</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                            @foreach (var cat in _categories)
+                            {
+                                var isSelected = _category == cat.Key;
+                                <div style="display:flex; align-items:center; gap:6px; padding:6px 14px;
+                                            border-radius:20px; cursor:pointer;
+                                            background:@(isSelected ? cat.Color + "22" : "#0b1422");
+                                            border:1px solid @(isSelected ? cat.Color + "66" : "#1a3a5c");
+                                            transition:all 0.15s;"
+                                     @onclick="() => _category = cat.Key">
+                                    <MudIcon Icon="@cat.Icon"
+                                             Style="@($"color:{(isSelected ? cat.Color : "#667788")}; font-size:13px;")" />
+                                    <span style="color:@(isSelected ? cat.Color : "#7ab3cc");
+                                                 font-size:10px; font-weight:@(isSelected ? "700" : "400");
+                                                 letter-spacing:1px;">@cat.Label</span>
+                                </div>
+                            }
+                        </div>
+                        @if (_showValidation && string.IsNullOrEmpty(_category))
+                        {
+                            <div style="color:#ff4444; font-size:9px; margin-top:6px; letter-spacing:1px;">
+                                Please select a category.
+                            </div>
+                        }
+                    </div>
+
+                    @* ── Rating ── *@
+                    <div>
+                        <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px;
+                                    font-weight:700; margin-bottom:10px;">
+                            RATING &nbsp;·&nbsp;
+                            <span style="color:@RatingColor; font-size:9px;">@RatingLabel</span>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var star = i;
+                                <div style="cursor:pointer; font-size:28px;
+                                            color:@(star <= _rating ? "#f59e0b" : "#1a3a5c");
+                                            transition:color 0.15s; user-select:none;"
+                                     @onclick="() => _rating = star">★</div>
+                            }
+                        </div>
+                        @if (_showValidation && _rating == 0)
+                        {
+                            <div style="color:#ff4444; font-size:9px; margin-top:6px; letter-spacing:1px;">
+                                Please select a rating.
+                            </div>
+                        }
+                    </div>
+
+                    @* ── Message ── *@
+                    <div>
+                        <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px;
+                                    font-weight:700; margin-bottom:10px;">MESSAGE</div>
+                        <MudTextField T="string"
+                                      @bind-Value="_message"
+                                      Placeholder="Describe your feedback, suggestion, or issue…"
+                                      Lines="4"
+                                      Variant="Variant.Outlined"
+                                      Style="background:#0b1422; color:#e8f4f8; font-size:12px;" />
+                        @if (_showValidation && string.IsNullOrWhiteSpace(_message))
+                        {
+                            <div style="color:#ff4444; font-size:9px; margin-top:4px; letter-spacing:1px;">
+                                Please enter a message.
+                            </div>
+                        }
+                    </div>
+
+                    @if (_errorMessage is not null)
+                    {
+                        <div style="background:#ff444412; border:1px solid #ff444433;
+                                    border-radius:10px; padding:10px 14px;
+                                    color:#ff6666; font-size:11px; line-height:1.5;">
+                            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline"
+                                     Style="color:#ff4444; font-size:14px; vertical-align:middle; margin-right:6px;" />
+                            @_errorMessage
+                        </div>
+                    }
+
+                    @* ── Actions ── *@
+                    <div style="display:flex; justify-content:flex-end; gap:10px; padding-top:4px;">
+                        <MudButton Variant="Variant.Text"
+                                   Style="color:#667788;"
+                                   OnClick="Cancel">Cancel</MudButton>
+                        <MudButton Variant="Variant.Filled"
+                                   Style="background:linear-gradient(135deg,#aa55ff,#7733cc);
+                                          color:#fff; font-weight:700; letter-spacing:1px;
+                                          border-radius:10px; padding:0 24px;"
+                                   OnClick="SubmitAsync">
+                            <MudIcon Icon="@Icons.Material.Filled.Send"
+                                     Style="font-size:15px; margin-right:6px;" />
+                            SEND FEEDBACK
+                        </MudButton>
+                    </div>
+                }
+            </div>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private string _category      = string.Empty;
+    private int    _rating        = 0;
+    private string _message       = string.Empty;
+    private bool   _sending       = false;
+    private bool   _submitted     = false;
+    private bool   _showValidation = false;
+    private string? _errorMessage = null;
+
+    private string _userNtId   = "Anonymous";
+    private string _userName   = "Anonymous";
+    private string _userEmail  = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        var useWindowsAuth = bool.Parse(Configuration["Feedback:UseWindowsAuth"] ?? "false");
+        if (!useWindowsAuth) return;
+
+        var ntLogin = UserSession.NtLogin;
+        if (!string.IsNullOrEmpty(ntLogin))
+        {
+            var info = AdUserService.GetUserInfo(ntLogin);
+            if (info is not null)
+            {
+                _userNtId  = info.NtId;
+                _userName  = info.DisplayName;
+                _userEmail = info.Email;
+            }
+        }
+    }
+
+    private record CategoryOption(string Key, string Label, string Icon, string Color);
+
+    private readonly CategoryOption[] _categories =
+    [
+        new("Bug",        "Bug Report",  Icons.Material.Filled.BugReport,       "#ff4444"),
+        new("Suggestion", "Suggestion",  Icons.Material.Filled.Lightbulb,       "#f59e0b"),
+        new("UI",         "UI / Design", Icons.Material.Filled.Palette,         "#00d4ff"),
+        new("Performance","Performance", Icons.Material.Filled.Speed,            "#22c55e"),
+        new("Data",       "Data / Query",Icons.Material.Filled.Storage,         "#aa55ff"),
+        new("Other",      "Other",       Icons.Material.Filled.MoreHoriz,       "#7ab3cc"),
+    ];
+
+    private string RatingColor => _rating switch
+    {
+        5 => "#22c55e",
+        4 => "#84cc16",
+        3 => "#f59e0b",
+        2 => "#ff6b35",
+        1 => "#ff4444",
+        _ => "#3d6b8a"
+    };
+
+    private string RatingLabel => _rating switch
+    {
+        5 => "Excellent",
+        4 => "Good",
+        3 => "Average",
+        2 => "Poor",
+        1 => "Very Poor",
+        _ => "Select a rating"
+    };
+
+    private async Task SubmitAsync()
+    {
+        _showValidation = true;
+        _errorMessage   = null;
+
+        if (string.IsNullOrEmpty(_category) || _rating == 0 || string.IsNullOrWhiteSpace(_message))
+            return;
+
+        _sending = true;
+        try
+        {
+            await FeedbackService.SendFeedbackAsync(new FeedbackDto
+            {
+                Category         = _categories.FirstOrDefault(c => c.Key == _category)?.Label ?? _category,
+                Rating           = _rating,
+                Message          = _message.Trim(),
+                Page             = "Dashboard",
+                SubmittedByNtId  = _userNtId,
+                SubmittedByName  = _userName,
+                SubmittedByEmail = _userEmail
+            });
+            _submitted = true;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to send feedback: {ex.Message}";
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

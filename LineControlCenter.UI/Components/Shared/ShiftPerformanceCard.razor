@@ -1,0 +1,261 @@
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.UI.Models
+@using LineControlCenter.UI.Components.Shared
+@using MudBlazor
+
+@{
+    var icon       = Card.Shift == "Morning"
+                     ? Icons.Material.Filled.WbSunny
+                     : Icons.Material.Filled.NightsStay;
+    var shiftColor = Card.Shift == "Morning" ? "#00e5c0" : "#60a5fa";
+    var yieldPct   = Card.YieldRate;
+    var badgeColor = Card.YieldRate >= 98 ? "#22c55e"
+                   : Card.YieldRate >= 90 ? "#f59e0b"
+                                          : "#ff3b3b";
+    var badgeText  = Card.YieldRate >= 98 ? "ON TARGET"
+                   : Card.YieldRate >= 90 ? "MONITOR"
+                                          : "AT RISK";
+}
+
+<MudPaper Elevation="0"
+          Class="shift-card"
+          Style="@($"--shift-color:{shiftColor}; background:#0d1f3c; border:1px solid #1a3a5c; border-radius:20px; box-shadow:inset 0 3px 0 0 {shiftColor}, 0 0 24px {shiftColor}0a;")">
+
+    @* Shift header *@
+    <div style="display:flex; align-items:center;
+                justify-content:space-between;
+                margin-bottom:20px;">
+        <MudStack Row="true" AlignItems="MudAlignItems.Center" Spacing="2">
+            <div style="width:clamp(28px,3vw,36px); height:clamp(28px,3vw,36px);
+                        border-radius:10px;
+                        background:@(shiftColor)22;
+                        border:1px solid @(shiftColor)44;
+                        display:flex; align-items:center; justify-content:center;">
+                <MudIcon Icon="@icon"
+                         Style="@($"color:{shiftColor}; font-size:clamp(14px,1.8vw,20px);")" />
+            </div>
+            <div>
+                <MudText Style="@($"color:{shiftColor}; font-family:'Orbitron',sans-serif; font-size:clamp(10px,1.2vw,14px); font-weight:700; letter-spacing:2px;")">
+                    @Card.Shift?.ToUpper()
+                </MudText>
+                <MudText Style="color:#7ab3cc; font-size:clamp(8px,1vw,11px);">
+                    SHIFT PERFORMANCE
+                </MudText>
+            </div>
+        </MudStack>
+
+        @* Status badge *@
+        <div style="border:1px solid @(badgeColor)55;
+                    background:@(badgeColor)11;
+                    border-radius:20px;
+                    padding:4px 12px;">
+            <MudText Style="@($"color:{badgeColor}; font-size:10px; font-weight:700; letter-spacing:2px;")">
+                ● @badgeText
+            </MudText>
+        </div>
+    </div>
+
+    @* ── Two gauges ── *@
+    <MudGrid Spacing="1">
+        <MudItem xs="6">
+            <div style="background:#0a1628;
+                        border:1px solid #1a3a5c;
+                        border-radius:14px;
+                        padding:clamp(6px,1vw,12px) clamp(4px,0.6vw,8px) 0;
+                        text-align:center;">
+                <MudText Style="color:#7ab3cc;
+                               font-size:clamp(7px,0.8vw,9px);
+                               letter-spacing:2px;
+                               display:block;
+                               margin-bottom:4px;">
+                    YIELD (RTY)
+                </MudText>
+                <div style="width:100%; aspect-ratio:200/108; max-width:320px; margin:auto; display:flex; align-items:center; justify-content:center;">
+                    <HalfCircleGauge Value="yieldPct"
+                                     Id="@($"yield-{Card.Shift}")" />
+                </div>
+                <MudText Style="color:#7ab3cc;
+                               font-size:clamp(7px,0.8vw,9px);
+                               letter-spacing:1px;
+                               display:block;
+                               padding-bottom:8px;">
+                    @Card.PassCount PASS / @Card.TestedCount TESTED
+                </MudText>
+            </div>
+        </MudItem>
+
+        <MudItem xs="6">
+            <div style="background:#0a1628;
+                        border:1px solid #1a3a5c;
+                        border-radius:14px;
+                        padding:clamp(6px,1vw,12px) clamp(4px,0.6vw,8px) 0;
+                        text-align:center;">
+                <MudText Style="color:#7ab3cc;
+                               font-size:clamp(7px,0.8vw,9px);
+                               letter-spacing:2px;
+                               display:block;
+                               margin-bottom:4px;">
+                    PLAN VS ACTUAL
+                </MudText>
+                <div style="width:100%; aspect-ratio:200/108; max-width:320px; margin:auto; display:flex; align-items:center; justify-content:center;">
+                    <HalfCircleGauge Value="@Card.PassCount"
+                                     Max="@Card.PlannedQty"
+                                     DisplayValue="@Card.PassCount.ToString()"
+                                     Id="@($"actual-{Card.Shift}")" />
+                </div>
+                <MudText Style="color:#7ab3cc;
+                               font-size:clamp(7px,0.8vw,9px);
+                               letter-spacing:1px;
+                               display:block;
+                               padding-bottom:8px;">
+                    @Card.PassCount ACTUAL / @Card.PlannedQty TARGET
+                </MudText>
+            </div>
+        </MudItem>
+    </MudGrid>
+
+    @* ── Stats strip ── *@
+    <div style="display:grid;
+                grid-template-columns:repeat(4,1fr);
+                gap:clamp(3px,0.5vw,8px);
+                margin-top:16px;
+                margin-bottom:14px;">
+        @StatBox("PLANNED", Card.PlannedQty.ToString(), "#e8f4f8")
+        @StatBox("PASS",    Card.PassCount.ToString(),  "#22c55e")
+        @StatBox("FAIL",    Card.FailCount.ToString(),  "#ff3b3b")
+        @StatBox("YIELD",   Card.YieldRate + "%",       badgeColor)
+    </div>
+
+    @* ── FNI Yield section (Night shift only) ── *@
+    @if (FniSummary != null)
+    {
+        var fniBadgeColor = FniSummary.YieldRate >= 98 ? "#22c55e"
+                          : FniSummary.YieldRate >= 90 ? "#f59e0b"
+                                                       : "#ff3b3b";
+        <div style="border-top:1px solid #1a3a5c; margin: 0 -clamp(10px,1.8vw,24px) 14px; padding: 14px clamp(10px,1.8vw,24px) 0;"></div>
+
+        @* FNI header *@
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <MudStack Row="true" AlignItems="MudAlignItems.Center" Spacing="2">
+                <div style="width:26px; height:26px; border-radius:8px;
+                            background:#00d4ff18; border:1px solid #00d4ff33;
+                            display:flex; align-items:center; justify-content:center;">
+                    <MudIcon Icon="@Icons.Material.Filled.Speed" Style="color:#00d4ff; font-size:14px;" />
+                </div>
+                <div>
+                    <MudText Style="color:#00d4ff; font-family:'Orbitron',sans-serif; font-size:clamp(9px,1vw,12px); font-weight:700; letter-spacing:2px;">
+                        FNI YIELD
+                    </MudText>
+                    <MudText Style="color:#7ab3cc; font-size:clamp(7px,0.8vw,9px);">WEEK TO DATE</MudText>
+                </div>
+            </MudStack>
+            <div style="border:1px solid @(fniBadgeColor)55; background:@(fniBadgeColor)11;
+                        border-radius:20px; padding:3px 10px;">
+                <MudText Style="@($"color:{fniBadgeColor}; font-size:9px; font-weight:700; letter-spacing:2px;")">
+                    ● @(FniSummary.YieldRate >= 98 ? "ON TARGET" : FniSummary.YieldRate >= 90 ? "MONITOR" : "AT RISK")
+                </MudText>
+            </div>
+        </div>
+
+        @* FNI load error *@
+        @if (FniLoadError != null)
+        {
+            <div style="background:#1a0a0a; border:1px solid #ff3b3b44; border-radius:8px;
+                        padding:6px 12px; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Style="color:#ff3b3b; font-size:14px;" />
+                <span style="color:#ff3b3b; font-size:10px;">@FniLoadError</span>
+            </div>
+        }
+
+        @* FNI gauge + stat strip side-by-side *@
+        <MudGrid Spacing="1" Class="mb-2">
+            <MudItem xs="6">
+                <div style="background:#0a1628; border:1px solid #1a3a5c; border-radius:12px;
+                            padding:clamp(4px,0.8vw,10px) clamp(3px,0.5vw,6px) 0; text-align:center;">
+                    <MudText Style="color:#7ab3cc; font-size:clamp(6px,0.7vw,8px); letter-spacing:2px; display:block; margin-bottom:2px;">
+                        YIELD (RTY)
+                    </MudText>
+                    <div style="width:100%; aspect-ratio:200/108; max-width:260px; margin:auto; display:flex; align-items:center; justify-content:center;">
+                        <HalfCircleGauge Value="@FniSummary.YieldRate" Id="fni-yield-night" />
+                    </div>
+                    <MudText Style="color:#7ab3cc; font-size:clamp(6px,0.7vw,8px); letter-spacing:1px; display:block; padding-bottom:6px;">
+                        @FniSummary.PassCount PASS / @FniSummary.TotalCount TESTED
+                    </MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="6">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:clamp(3px,0.4vw,6px); height:100%;">
+                    @FniStatBox("PASS",  FniSummary.PassCount.ToString(),           "#22c55e")
+                    @FniStatBox("FAIL",  FniSummary.FailCount.ToString(),           "#ff3b3b")
+                    @FniStatBox("TOTAL", FniSummary.TotalCount.ToString(),          "#e8f4f8")
+                    @FniStatBox("YIELD", FniSummary.YieldRate.ToString("F2") + "%", fniBadgeColor)
+                </div>
+            </MudItem>
+        </MudGrid>
+
+        @* FNI detail button *@
+        <MudButton Variant="MudVariant.Outlined"
+                   FullWidth="true"
+                   Size="MudSize.Small"
+                   Style="border-color:#00d4ff33 !important; color:#00d4ff !important; border-radius:8px; margin-bottom:10px;"
+                   StartIcon="@Icons.Material.Filled.OpenInFull"
+                   OnClick="() => OnViewFniDetails.InvokeAsync()">
+            FNI DETAILS
+        </MudButton>
+    }
+
+    @* ── Drill-down buttons ── *@
+    <div style="display:flex; gap:6px; margin-top:auto;">
+        <MudButton Variant="MudVariant.Outlined"
+                   FullWidth="true"
+                   Size="MudSize.Small"
+                   Style="@($"border-color:{shiftColor}33; color:{shiftColor}; border-radius:8px;")"
+                   StartIcon="@Icons.Material.Filled.OpenInFull"
+                   OnClick="() => OnViewDetails.InvokeAsync(Card)">
+            VIEW DETAILS
+        </MudButton>
+        <MudButton Variant="MudVariant.Outlined"
+                   FullWidth="true"
+                   Size="MudSize.Small"
+                   Style="@($"border-color:{shiftColor}33; color:{shiftColor}; border-radius:8px;")"
+                   StartIcon="@Icons.Material.Filled.AccountTree"
+                   OnClick="() => OnByProcess.InvokeAsync(Card)">
+            BY PROCESS
+        </MudButton>
+    </div>
+
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public CardModel                    Card             { get; set; } = default!;
+    [Parameter]                 public EventCallback<CardModel>     OnViewDetails    { get; set; }
+    [Parameter]                 public EventCallback<CardModel>     OnByProcess      { get; set; }
+    [Parameter]                 public FniYieldSummaryDto?          FniSummary       { get; set; }
+    [Parameter]                 public string?                      FniLoadError     { get; set; }
+    [Parameter]                 public EventCallback                OnViewFniDetails { get; set; }
+
+    private RenderFragment FniStatBox(string lbl, string val, string col) =>
+        @<div style="background:#0a1628; border:1px solid #1a3a5c; border-radius:8px;
+                    padding:clamp(4px,0.6vw,8px) clamp(2px,0.4vw,6px); text-align:center;
+                    display:flex; flex-direction:column; justify-content:center;">
+            <div style="color:#7ab3cc; font-size:clamp(5px,0.6vw,8px); letter-spacing:1px; margin-bottom:2px;">@lbl</div>
+            <div style="color:@col; font-size:clamp(11px,1.3vw,17px); font-weight:900; font-family:monospace; line-height:1;">@val</div>
+        </div>;
+
+    private RenderFragment StatBox(string lbl, string val, string col) =>
+        @<div style="background:#0a1628;
+                    border:1px solid #1a3a5c;
+                    border-radius:10px;
+                    padding:clamp(5px,0.8vw,10px) clamp(3px,0.5vw,8px);
+                    text-align:center;">
+            <div style="color:#7ab3cc; font-size:clamp(6px,0.7vw,9px);
+                        letter-spacing:1px; margin-bottom:4px;">
+                @lbl
+            </div>
+            <div style="color:@col; font-size:clamp(13px,1.6vw,20px);
+                        font-weight:900; font-family:monospace;
+                        line-height:1;">
+                @val
+            </div>
+        </div>;
+}

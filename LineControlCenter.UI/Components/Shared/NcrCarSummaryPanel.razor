@@ -1,0 +1,791 @@
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.Application.Queries.Compliance
+@using LineControlCenter.UI.Models
+@using LineControlCenter.UI.Components.Dialogs
+@using MudBlazor
+@using MediatR
+@inject ISender Sender
+@inject IDialogService    DialogService
+@inject ILogger<NcrCarSummaryPanel> Logger
+@inject LineControlCenter.UI.Services.RefreshStateService RefreshState
+@implements IAsyncDisposable
+
+@* ═══════════════════════════════════════════════════════════════
+   NCR / CAR COMPLIANCE — TWO-CARD LAYOUT
+   ═══════════════════════════════════════════════════════════════ *@
+<div style="margin-top:20px;">
+
+    @* ── Section Title Bar ── *@
+    <div style="display:flex; align-items:center; justify-content:space-between;
+                margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:4px; height:28px; border-radius:2px;
+                        background:linear-gradient(180deg,#ff6b35,#00b4d8);"></div>
+            <div>
+                <div style="color:#e8f4f8; font-family:'Orbitron',sans-serif;
+                            font-size:14px; font-weight:800; letter-spacing:5px;">
+                    COMPLIANCE OVERVIEW
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:3px;">
+                    @if (!string.IsNullOrWhiteSpace(Bay))
+                    {
+                        <span style="color:#7ab3cc; font-size:9px; letter-spacing:1px;">
+                            BAY <span style="color:#00b4d8; font-weight:700;">@Bay.ToUpper()</span>
+                        </span>
+                        <span style="color:#3d6b8a;">·</span>
+                    }
+                    <span style="color:#7ab3cc; font-size:9px; letter-spacing:1px;">MOTOROLA / MOBILE DEVICES</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Two-Card Grid ── *@
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+
+        @* ╔══════════════════════════════════════════════╗
+           ║  CARD 1 — NCR                               ║
+           ╚══════════════════════════════════════════════╝ *@
+
+        <div style="background:#0a1628; border:1px solid #1a3a5c;
+                    border-radius:16px; overflow:hidden;
+                    box-shadow:0 4px 30px #00000060;
+                    display:flex; flex-direction:column;">
+            @* Card accent bar (match compliance cards: blue) *@
+            <div style="height:3px; background:linear-gradient(90deg,#00b4d8,#00b4d888,transparent);"></div>
+
+            @* Card Header *@
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:16px 20px 14px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:38px; height:38px; border-radius:10px;
+                                background:linear-gradient(135deg,#00b4d818,#00b4d808);
+                                border:1px solid #00b4d830;
+                                display:flex; align-items:center; justify-content:center;">
+                        <MudIcon Icon="@Icons.Material.Filled.ReportProblem"
+                                 Style="color:#00b4d8; font-size:18px;" />
+                    </div>
+                    <div>
+                        <div style="color:#e8f4f8; font-family:'Orbitron',sans-serif;
+                                    font-size:14px; font-weight:700; letter-spacing:3px;">NCR</div>
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:1px; margin-top:2px;">
+                            NON-CONFORMANCE REPORT
+                        </div>
+                    </div>
+                </div>
+                @if (!_loading && _ncrGroups.Count > 0)
+                {
+                    <div style="display:flex; align-items:center; gap:5px;
+                                background:@(GetMoodColor(_overallMoodTier))10;
+                                border:1px solid @(GetMoodColor(_overallMoodTier))25;
+                                border-radius:20px; padding:4px 12px 4px 8px;">
+                        <MudIcon Icon="@GetMoodIcon(_overallMoodTier)"
+                                 Style="@($"color:{GetMoodColor(_overallMoodTier)}; font-size:16px;")" />
+                        <span style="color:@(GetMoodColor(_overallMoodTier));
+                                     font-size:10px; font-weight:700; letter-spacing:1.5px;">
+                            @GetMoodLabel(_overallMoodTier)
+                        </span>
+                    </div>
+                }
+            </div>
+
+            @* Card Body *@
+            @if (_loading)
+            {
+                <div style="padding:16px 20px; flex:1;">
+                    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px;">
+                        @for (int i = 0; i < 4; i++)
+                        {
+                            <MudSkeleton Height="68px" Style="border-radius:10px; background:#112244;" />
+                        }
+                    </div>
+                    @for (int i = 0; i < 2; i++)
+                    {
+                        <MudSkeleton Height="48px" Style="border-radius:8px; background:#112244; margin-bottom:6px;" />
+                    }
+                </div>
+            }
+            else if (_loadError != null)
+            {
+                <div style="padding:40px 20px; text-align:center; flex:1;
+                            display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                    <MudIcon Icon="@Icons.Material.Filled.ErrorOutline"
+                             Style="color:#ff3b3b; font-size:36px;" />
+                    <div style="color:#ff3b3b; font-size:11px; margin:10px 0 14px;">@_loadError</div>
+                    <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                               Style="border-color:#ff3b3b; color:#ff3b3b;"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="LoadDataAsync">RETRY</MudButton>
+                </div>
+            }
+            else if (_ncrGroups.Count == 0)
+            {
+                @* <div style="flex:1; display:flex; flex-direction:column;
+                            align-items:center; justify-content:center; padding:40px 20px; gap:10px;">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline"
+                             Style="color:#22c55e; font-size:44px;" />
+                    <div style="color:#22c55e; font-size:12px; font-weight:700; letter-spacing:2px;">ALL CLEAR</div>
+                    <div style="color:#7ab3cc; font-size:10px;">No open NCR records</div>
+                </div> *@
+            }
+            else
+            {
+                @* ── KPI Strip ── *@
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr;
+                            border-top:1px solid #1a3a5c; border-bottom:1px solid #1a3a5c;">
+                    @* Total *@
+                    <div style="padding:18px 8px; text-align:center;
+                                border-right:1px solid #1a3a5c;">
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:2px;
+                                    font-weight:600; margin-bottom:8px;">TOTAL</div>
+                        <div style="color:#00b4d8; font-family:'Orbitron',monospace;
+                                    font-size:26px; font-weight:900; line-height:1;">@_totalRecords</div>
+                    </div>
+                    @* Open *@
+                    <div style="padding:18px 8px; text-align:center;
+                                border-right:1px solid #1a3a5c;">
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:2px;
+                                    font-weight:600; margin-bottom:8px;">OPEN</div>
+                        <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <div style="width:7px; height:7px; border-radius:50%;
+                                        background:@_openAccent; box-shadow:0 0 8px @_openAccent;"></div>
+                            <span style="color:@_openAccent; font-family:'Orbitron',monospace;
+                                         font-size:26px; font-weight:900; line-height:1;">@_totalOpen</span>
+                        </div>
+                    </div>
+                    @* Closed *@
+                    <div style="padding:18px 8px; text-align:center;
+                                border-right:1px solid #1a3a5c;">
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:2px;
+                                    font-weight:600; margin-bottom:8px;">CLOSED</div>
+                        <div style="color:#22c55e; font-family:'Orbitron',monospace;
+                                    font-size:26px; font-weight:900; line-height:1;">@_totalClosed</div>
+                    </div>
+                    @* Overdue *@
+                    <div style="padding:18px 8px; text-align:center;">
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:2px;
+                                    font-weight:600; margin-bottom:8px;">OVERDUE</div>
+                        @if (_totalOverdue > 0)
+                        {
+                            <span style="color:#ff3b3b; font-family:'Orbitron',monospace;
+                                         font-size:26px; font-weight:900; line-height:1;">@_totalOverdue</span>
+                        }
+                        else
+                        {
+                            <span style="color:#3d6b8a; font-size:22px; line-height:1;">—</span>
+                        }
+                    </div>
+                </div>
+
+                @* ── NCR Type Cards ── *@
+                <div style="padding:10px 12px 14px; display:flex; flex-direction:column; gap:8px; flex:1; overflow-y:auto;">
+                    @foreach (var group in _ncrGroups)
+                    {
+                        var openIsZero    = group.OpenCount == 0;
+
+                        <div style="background:#0d1f3c; border:none; border-left:3px solid @(group.CountColor);
+                                    border-radius:10px; padding:12px 14px;
+                                    cursor:pointer; box-shadow:0 4px 18px rgba(0,0,0,0.45);"
+                             @onclick="() => OpenDetailDialog(group)">
+
+                            <div style="display:flex; align-items:center; gap:12px;">
+
+                                @* Open count bubble — most prominent element *@
+                                <div style="width:52px; height:52px; border-radius:12px; flex-shrink:0;
+                                            background:@(group.CountColor)12;
+                                            border:1.5px solid @(group.CountColor)44;
+                                            display:flex; flex-direction:column;
+                                            align-items:center; justify-content:center;
+                                            box-shadow:0 0 12px @(group.CountColor)18;">
+                                    <span style="color:@(group.CountColor); font-family:'Orbitron',monospace;
+                                                 font-size:@(group.OpenCount >= 100 ? "14px" : "20px");
+                                                 font-weight:900; line-height:1;">
+                                        @group.OpenCount
+                                    </span>
+                                    <span style="color:@(group.CountColor)99; font-size:6px;
+                                                 letter-spacing:1.5px; font-weight:700; margin-top:2px;">
+                                        OPEN
+                                    </span>
+                                </div>
+
+                                @* Type info + stats *@
+                                <div style="flex:1; min-width:0;">
+
+                                    @* Title row *@
+                                    <div style="display:flex; align-items:center;
+                                                justify-content:space-between; gap:6px; margin-bottom:5px;">
+                                        <span style="color:#e8f4f8; font-size:11.5px; font-weight:700;
+                                                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                                     flex:1; min-width:0;"
+                                              title="@group.GroupTitle">
+                                            @group.GroupTitle
+                                        </span>
+                                        <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;
+                                                    background:@(group.MoodColor)0d;
+                                                    border:1px solid @(group.MoodColor)22;
+                                                    border-radius:12px; padding:2px 7px 2px 5px;">
+                                            <MudIcon Icon="@GetMoodIcon(group.MoodTier)"
+                                                     Style="@($"color:{group.MoodColor}; font-size:11px;")" />
+                                            <span style="color:@(group.MoodColor); font-size:8px;
+                                                         font-weight:700; letter-spacing:0.5px;">
+                                                @group.MoodLabel
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    @* Stats pill row *@
+                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:7px; flex-wrap:wrap;">
+                                        <span style="color:#7ab3cc; font-size:10px;">
+                                            TOTAL&nbsp;<span style="color:#e8f4f8; font-weight:700; font-family:monospace;">@group.Count</span>
+                                        </span>
+                                        <span style="color:#7ab3cc;">·</span>
+                                        <span style="color:#7ab3cc; font-size:10px;">
+                                            CLOSED&nbsp;<span style="color:#22c55e; font-weight:700; font-family:monospace;">@group.ClosedCount</span>
+                                        </span>
+                                        @if (group.OverdueCount > 0)
+                                        {
+                                            <span style="color:#7ab3cc;">·</span>
+                                            <span style="background:#ff3b3b0d; border:1px solid #ff3b3b22;
+                                                         color:#ff3b3b; font-size:9px; font-weight:700;
+                                                         padding:1px 6px; border-radius:6px; letter-spacing:0.5px;">
+                                                ⚠ @group.OverdueCount OVERDUE
+                                            </span>
+                                        }
+                                        @if (openIsZero)
+                                        {
+                                            <span style="background:#22c55e0d; border:1px solid #22c55e22;
+                                                         color:#22c55e; font-size:9px; font-weight:700;
+                                                         padding:1px 7px; border-radius:6px; letter-spacing:0.5px;">
+                                                ✓ ALL CLOSED
+                                            </span>
+                                        }
+                                    </div>
+
+                                    <div style="display:flex; justify-content:flex-end;">
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight"
+                                                 Style="color:#4a6480; font-size:16px;" />
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* ╔══════════════════════════════════════════════╗
+           ║  CARD 2 — CAR                               ║
+           ╚══════════════════════════════════════════════╝ *@
+        <div style="background:#0a1628; border:1px solid #1a3a5c;
+                    border-radius:16px; overflow:hidden;
+                    box-shadow:0 4px 30px #00000060;
+                    display:flex; flex-direction:column;">
+
+            @* Card accent bar *@
+            <div style="height:3px; background:linear-gradient(90deg,#00b4d8,#00b4d888,transparent);"></div>
+
+            @* Card Header *@
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:16px 20px 14px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:38px; height:38px; border-radius:10px;
+                                background:linear-gradient(135deg,#00b4d818,#00b4d808);
+                                border:1px solid #00b4d830;
+                                display:flex; align-items:center; justify-content:center;">
+                        <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn"
+                                 Style="color:#00b4d8; font-size:18px;" />
+                    </div>
+                    <div>
+                        <div style="color:#e8f4f8; font-family:'Orbitron',sans-serif;
+                                    font-size:14px; font-weight:700; letter-spacing:3px;">CAR</div>
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:1px; margin-top:2px;">
+                            CORRECTIVE ACTION REPORT · THIS WEEK
+                        </div>
+                    </div>
+                </div>
+                @if (!_carLoading)
+                {
+                    var carTotal    = _carCategories.Sum(c => c.Value.Count);
+                    var carOpen     = _carCategories.Sum(c => c.Value.Count(x => !CarIsCompleted(x)));
+                    var carMoodTier = GetCarMoodTier(carOpen);
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:5px;
+                                    background:@(GetMoodColor(carMoodTier))10;
+                                    border:1px solid @(GetMoodColor(carMoodTier))25;
+                                    border-radius:20px; padding:4px 12px 4px 8px;">
+                            <MudIcon Icon="@GetMoodIcon(carMoodTier)"
+                                     Style="@($"color:{GetMoodColor(carMoodTier)}; font-size:16px;")" />
+                            <span style="color:@(GetMoodColor(carMoodTier));
+                                         font-size:10px; font-weight:700; letter-spacing:1.5px;">
+                                @GetCarMoodLabel(carMoodTier)
+                            </span>
+                        </div>
+                       @*  <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                       Size="MudSize.Small"
+                                       Disabled="@_carLoading"
+                                       Style="color:#7ab3cc; background:#0a1628; border:1px solid #1a3a5c;
+                                              border-radius:10px; width:32px; height:32px;"
+                                       OnClick="LoadCarDataAsync" /> *@
+                    </div>
+                }
+            </div>
+
+            @* Body *@
+            @if (_carLoading)
+            {
+                <div style="padding:16px 20px; flex:1;">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        <MudSkeleton Height="58px" Style="border-radius:10px; background:#112244; margin-bottom:8px;" />
+                    }
+                </div>
+            }
+            else if (_carLoadError != null)
+            {
+                <div style="padding:40px 20px; text-align:center; flex:1;
+                            display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                    <MudIcon Icon="@Icons.Material.Filled.ErrorOutline"
+                             Style="color:#ff3b3b; font-size:36px;" />
+                    <div style="color:#ff3b3b; font-size:11px; margin:10px 0 14px;">@_carLoadError</div>
+                    <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                               Style="border-color:#ff3b3b; color:#ff3b3b;"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="LoadCarDataAsync">RETRY</MudButton>
+                </div>
+            }
+            else
+            {
+                var cTotal    = _carCategories.Sum(c => c.Value.Count);
+                var cOpen     = _carCategories.Sum(c => c.Value.Count(x => !CarIsCompleted(x)));
+                var cClosed   = cTotal - cOpen;
+                var cOverdue  = _carCategories.Sum(c => c.Value.Count(x =>
+                                    !CarIsCompleted(x) &&
+                                    x.D7DueDate.HasValue &&
+                                    x.D7DueDate.Value < DateOnly.FromDateTime(DateTime.Today)));
+                var cMoodTier = GetCarMoodTier(cOpen);
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr;
+                            border-top:1px solid #1a3a5c; border-bottom:1px solid #1a3a5c;">
+                    <div style="padding:18px 8px; text-align:center; border-right:1px solid #1a3a5c;">
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:2px; font-weight:600; margin-bottom:8px;">TOTAL</div>
+                        <div style="color:#00b4d8; font-family:'Orbitron',monospace; font-size:26px; font-weight:900; line-height:1;">@cTotal</div>
+                    </div>
+                    <div style="padding:18px 8px; text-align:center; border-right:1px solid #1a3a5c;">
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:2px; font-weight:600; margin-bottom:8px;">OPEN</div>
+                        <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <div style="width:7px; height:7px; border-radius:50%;
+                                        background:@(cOpen>0?"#f59e0b":"#22c55e");
+                                        box-shadow:0 0 8px @(cOpen>0?"#f59e0b":"#22c55e");"></div>
+                            <span style="color:@(cOpen>0?"#f59e0b":"#22c55e"); font-family:'Orbitron',monospace;
+                                         font-size:26px; font-weight:900; line-height:1;">@cOpen</span>
+                        </div>
+                    </div>
+                    <div style="padding:18px 8px; text-align:center; border-right:1px solid #1a3a5c;">
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:2px; font-weight:600; margin-bottom:8px;">CLOSED</div>
+                        <div style="color:#22c55e; font-family:'Orbitron',monospace; font-size:26px; font-weight:900; line-height:1;">@cClosed</div>
+                    </div>
+                    <div style="padding:18px 8px; text-align:center;">
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:2px; font-weight:600; margin-bottom:8px;">OVERDUE</div>
+                        @if (cOverdue > 0)
+                        {
+                            <span style="color:#ff3b3b; font-family:'Orbitron',monospace; font-size:26px; font-weight:900; line-height:1;">@cOverdue</span>
+                        }
+                        else
+                        {
+                            <span style="color:#3d6b8a; font-size:22px; line-height:1;">—</span>
+                        }
+                    </div>
+                </div>
+
+                @* ── Category Cards ── *@
+                <div style="padding:10px 12px 14px; display:flex; flex-direction:column; gap:8px; flex:1; overflow-y:auto;">
+                    @foreach (var catName in _carCategoryOrder)
+                    {
+                        if (!_carCategories.TryGetValue(catName, out var catItems)) continue;
+
+                        var catOpen    = catItems.Count(x => !CarIsCompleted(x));
+                        var catClosed  = catItems.Count - catOpen;
+                        var catOverdue = catItems.Count(x =>
+                                             !CarIsCompleted(x) &&
+                                             x.D7DueDate.HasValue &&
+                                             x.D7DueDate.Value < DateOnly.FromDateTime(DateTime.Today));
+                        var catColor    = catOpen == 0 ? "#22c55e" : catOpen <= 3 ? "#f59e0b" : "#ff3b3b";
+                        var catMoodTier = GetCarMoodTier(catOpen);
+                        var catIcon    = catName switch
+                        {
+                            "Internal"     => Icons.Material.Filled.Business,
+                            "Site to Site" => Icons.Material.Filled.SwapHoriz,
+                            "Audit"        => Icons.Material.Filled.FactCheck,
+                            "Customer"     => Icons.Material.Filled.People,
+                            _              => Icons.Material.Filled.FolderOpen
+                        };
+
+                        <div style="background:#0d1f3c; border:1px solid #1a3a5c;
+                                    border-left:3px solid @catColor;
+                                    border-radius:10px; padding:12px 14px;
+                                    cursor:pointer; transition:background 0.15s ease;"
+                             @onclick="() => OpenCarDetailDialog(catName, catItems)"
+                             onmouseover="this.style.background='#112244';"
+                             onmouseout="this.style.background='#0d1f3c';">
+
+                            <div style="display:flex; align-items:center; gap:12px;">
+
+                                @* Open count bubble *@
+                                <div style="width:52px; height:52px; border-radius:12px; flex-shrink:0;
+                                            background:@(catColor)12; border:1.5px solid @(catColor)44;
+                                            display:flex; flex-direction:column;
+                                            align-items:center; justify-content:center;
+                                            box-shadow:0 0 12px @(catColor)18;">
+                                    <span style="color:@catColor; font-family:'Orbitron',monospace;
+                                                 font-size:@(catOpen >= 100 ? "14px" : "20px");
+                                                 font-weight:900; line-height:1;">
+                                        @catOpen
+                                    </span>
+                                    <span style="color:@(catColor)99; font-size:6px; letter-spacing:1.5px;
+                                                 font-weight:700; margin-top:2px;">OPEN</span>
+                                </div>
+
+                                <div style="flex:1; min-width:0;">
+                                    @* Title row *@
+                                    <div style="display:flex; align-items:center;
+                                                justify-content:space-between; gap:6px; margin-bottom:5px;">
+                                        <div style="display:flex; align-items:center; gap:6px;">
+                                            <MudIcon Icon="@catIcon"
+                                                     Style="@($"color:{catColor}; font-size:14px; flex-shrink:0;")" />
+                                            <span style="color:#e8f4f8; font-size:11.5px; font-weight:700;
+                                                         white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                @catName.ToUpper()
+                                            </span>
+                                        </div>
+                                        <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;
+                                                    background:@(GetMoodColor(catMoodTier))0d;
+                                                    border:1px solid @(GetMoodColor(catMoodTier))22;
+                                                    border-radius:12px; padding:2px 7px 2px 5px;">
+                                            <MudIcon Icon="@GetMoodIcon(catMoodTier)"
+                                                     Style="@($"color:{GetMoodColor(catMoodTier)}; font-size:11px;")" />
+                                            <span style="color:@(GetMoodColor(catMoodTier)); font-size:8px;
+                                                         font-weight:700; letter-spacing:0.5px;">
+                                                @GetCarMoodLabel(catMoodTier)
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    @* Stats pills *@
+                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:7px; flex-wrap:wrap;">
+                                        <span style="color:#7ab3cc; font-size:10px;">
+                                            TOTAL&nbsp;<span style="color:#e8f4f8; font-weight:700; font-family:monospace;">@catItems.Count</span>
+                                        </span>
+                                        <span style="color:#7ab3cc;">·</span>
+                                        <span style="color:#7ab3cc; font-size:10px;">
+                                            CLOSED&nbsp;<span style="color:#22c55e; font-weight:700; font-family:monospace;">@catClosed</span>
+                                        </span>
+                                        @if (catOverdue > 0)
+                                        {
+                                            <span style="color:#7ab3cc;">·</span>
+                                            <span style="background:#ff3b3b0d; border:1px solid #ff3b3b22;
+                                                         color:#ff3b3b; font-size:9px; font-weight:700;
+                                                         padding:1px 6px; border-radius:6px; letter-spacing:0.5px;">
+                                                ⚠ @catOverdue OVERDUE
+                                            </span>
+                                        }
+                                        @if (catOpen == 0)
+                                        {
+                                            <span style="background:#22c55e0d; border:1px solid #22c55e22;
+                                                         color:#22c55e; font-size:9px; font-weight:700;
+                                                         padding:1px 7px; border-radius:6px; letter-spacing:0.5px;">
+                                                ✓ ALL CLOSED
+                                            </span>
+                                        }
+                                    </div>
+
+                                    <div style="display:flex; justify-content:flex-end;">
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight"
+                                                 Style="color:#3d6b8a; font-size:16px;" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (!_carCategories.Any(c => c.Value.Count > 0))
+                    {
+                       @*  <div style="flex:1; display:flex; flex-direction:column;
+                                    align-items:center; justify-content:center; padding:40px 20px; gap:10px;">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline"
+                                     Style="color:#22c55e; font-size:44px;" />
+                            <div style="color:#22c55e; font-size:12px; font-weight:700; letter-spacing:2px;">ALL CLEAR</div>
+                            <div style="color:#7ab3cc; font-size:10px;">No CAR records this week</div>
+                        </div> *@
+                    }
+                </div>
+            }
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? Bay { get; set; }
+
+    private bool                     _loading   = false;
+    private string?                  _loadError = null;
+    private List<NcrCarGroupSummary> _ncrGroups = [];
+    private string?                  _previousBay;
+    private Timer?                   _autoRefreshTimer;
+    private bool                     _isAutoRefreshing;
+    private const int                AutoRefreshIntervalMs = 600_000;
+
+    private int    _totalRecords    => _ncrGroups.Sum(g => g.Count);
+    private int    _totalOpen       => _ncrGroups.Sum(g => g.OpenCount);
+    private int    _totalClosed     => _ncrGroups.Sum(g => g.ClosedCount);
+    private int    _totalOverdue    => _ncrGroups.Sum(g => g.OverdueCount);
+    private double _overallRate     => _totalRecords == 0 ? 0d :
+        Math.Round((double)_totalClosed / _totalRecords * 100, 1);
+    private int    _overallMoodTier => _totalOpen == 0 ? 4 : _totalOpen <= 3  ? 3 :
+                                       _totalOpen <= 6  ? 2 : _totalOpen <= 10 ? 1 : 0;
+
+    // Gauge computed helpers (large — kept for reference if needed)
+    private double _gaugeFill  => Math.Round(_overallRate / 100.0 * 282.7, 1);
+    private string _gaugeColor => _overallRate >= 80 ? "#22c55e" : _overallRate >= 50 ? "#f59e0b" : "#ff3b3b";
+    private string _needleX    => (100 + 76 * Math.Cos((1.0 - _overallRate / 100.0) * Math.PI)).ToString("F1");
+    private string _needleY    => (100 - 76 * Math.Sin((1.0 - _overallRate / 100.0) * Math.PI)).ToString("F1");
+
+    // Mini gauge helpers — radius 52, centre (60,60), arc length π×52≈163.4, needle length 44
+    private double _miniGaugeFill => Math.Round(_overallRate / 100.0 * 163.4, 1);
+    private string _miniNeedleX   => (60 + 44 * Math.Cos((1.0 - _overallRate / 100.0) * Math.PI)).ToString("F1");
+    private string _miniNeedleY   => (60 - 44 * Math.Sin((1.0 - _overallRate / 100.0) * Math.PI)).ToString("F1");
+
+    private string _openAccent => _totalOpen > 0 ? "#f59e0b" : "#22c55e";
+    private string _ovdAccent  => _totalOverdue > 0 ? "#ff3b3b" : "#3d6b8a";
+
+    private static string GetMoodIcon(int tier) => tier switch
+    {
+        4 => Icons.Material.Filled.SentimentVerySatisfied,
+        3 => Icons.Material.Filled.SentimentSatisfied,
+        2 => Icons.Material.Filled.SentimentNeutral,
+        1 => Icons.Material.Filled.SentimentDissatisfied,
+        _ => Icons.Material.Filled.SentimentVeryDissatisfied
+    };
+    private static string GetMoodColor(int tier) => tier switch
+    {
+        4 => "#22c55e", 3 => "#7ed957", 2 => "#f59e0b", 1 => "#ff6b35", _ => "#ff3b3b"
+    };
+    private static string GetMoodLabel(int tier) => tier switch
+    {
+        4 => "EXCELLENT", 3 => "ACCEPTABLE", 2 => "FAIR", 1 => "AT RISK", _ => "CRITICAL"
+    };
+
+    // CAR mood is open-count-based: 0 open = Excellent → many open = Critical
+    private static int GetCarMoodTier(int openCount) => openCount == 0 ? 4
+        : openCount <= 3  ? 3   // Acceptable
+        : openCount <= 6  ? 2   // Fair
+        : openCount <= 10 ? 1   // At Risk
+        : 0;                    // Critical
+
+    private static string GetCarMoodLabel(int tier) => tier switch
+    {
+        4 => "EXCELLENT", 3 => "ACCEPTABLE", 2 => "FAIR", 1 => "AT RISK", _ => "CRITICAL"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        RefreshState.OnRefreshRequested += HandleRefreshRequested;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Bay != _previousBay)
+        {
+            _previousBay = Bay;
+            await LoadDataAsync();
+            await LoadCarDataAsync();
+        }
+
+        StartAutoRefresh();
+    }
+
+    private async Task HandleRefreshRequested()
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadDataAsync();
+            await LoadCarDataAsync();
+        });
+    }
+
+    private void StartAutoRefresh()
+    {
+        _autoRefreshTimer?.Dispose();
+        _autoRefreshTimer = new Timer(async _ => await AutoRefreshAsync(), null, AutoRefreshIntervalMs, AutoRefreshIntervalMs);
+    }
+
+    private async Task AutoRefreshAsync()
+    {
+        if (_isAutoRefreshing || string.IsNullOrWhiteSpace(Bay))
+            return;
+
+        _isAutoRefreshing = true;
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadDataAsync();
+                await LoadCarDataAsync();
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Auto refresh failed for compliance panel");
+        }
+        finally
+        {
+            _isAutoRefreshing = false;
+        }
+    }
+
+    // ── NCR / CAR data loading logic ───────────────────────────────────────────────────
+    private async Task LoadDataAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Bay)) return;
+
+        _loading   = true;
+        _loadError = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await Sender.Send(new GetNcrCarsByBayQuery(Bay));
+            if (result.IsSuccess)
+                BuildGroups(result.Value);
+            else
+                _loadError = result.Error.Description;
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"Failed to load NCR data: {ex.Message}";
+            Logger.LogError(ex, "Failed to load NCR data for bay {Bay}", Bay);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ── CAR state ──────────────────────────────────────────────────────────────
+    private static readonly string[] _carCategoryOrder = ["Internal", "Site to Site", "Audit", "Customer"];
+
+    private bool                                     _carLoading    = false;
+    private string?                                  _carLoadError  = null;
+    private Dictionary<string, List<JcasMainTblDto>>    _carCategories = [];
+
+    private async Task LoadCarDataAsync()
+    {
+        _carLoading   = true;
+        _carLoadError = null;
+        StateHasChanged();
+        try
+        {
+            var result = await Sender.Send(new GetCurrentWeekJcasCarsQuery());
+            if (result.IsSuccess)
+                BuildCarGroups(result.Value);
+            else
+                _carLoadError = result.Error.Description;
+        }
+        catch (Exception ex)
+        {
+            _carLoadError = $"Failed to load CAR data: {ex.Message}";
+            Logger.LogError(ex, "Failed to load CAR data");
+        }
+        finally
+        {
+            _carLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void BuildCarGroups(IReadOnlyList<JcasMainTblDto> records)
+    {
+        var grouped = records
+            .GroupBy(r => r.CategoryName ?? "Other",
+                     StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key,
+                          g => g.OrderByDescending(x => x.JcasCreatedDate).ToList(),
+                          StringComparer.OrdinalIgnoreCase);
+
+        _carCategories = new Dictionary<string, List<JcasMainTblDto>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var cat in _carCategoryOrder)
+            _carCategories[cat] = grouped.TryGetValue(cat, out var list) ? list : [];
+    }
+
+    private static bool CarIsCompleted(JcasMainTblDto x) =>
+        x.Phase?.Equals("Complete",  StringComparison.OrdinalIgnoreCase) == true ||
+        x.Phase?.Equals("Cancelled", StringComparison.OrdinalIgnoreCase) == true;
+
+    private async Task OpenCarDetailDialog(string categoryName, List<JcasMainTblDto> items)
+    {
+        var parameters = new DialogParameters<CarDetailDialog>
+        {
+            { x => x.CategoryName, categoryName },
+            { x => x.Items,        items         }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<CarDetailDialog>(null, parameters, options);
+    }
+
+    // List all expected NCR types here. Add more as needed.
+    private static readonly string[] _ncrTypeOrder = new[] {"OBA CAR", "Line Compliance", "5S Compliance" };
+
+    private void BuildGroups(IReadOnlyList<LccNcrcarsTblDto> records)
+    {
+        var grouped = records
+            .Where(r => !string.IsNullOrWhiteSpace(r.NcrType))
+            .GroupBy(r => r.NcrType!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.IssueDate).ToList(), StringComparer.OrdinalIgnoreCase);
+
+        _ncrGroups = new List<NcrCarGroupSummary>();
+        foreach (var ncrType in _ncrTypeOrder)
+        {
+            _ncrGroups.Add(new NcrCarGroupSummary
+            {
+                GroupTitle  = ncrType,
+                SectionType = "NCR",
+                Items       = grouped.TryGetValue(ncrType, out var items) ? items : new List<LccNcrcarsTblDto>()
+            });
+        }
+    }
+
+    private async Task OpenDetailDialog(NcrCarGroupSummary group)
+    {
+        var parameters = new DialogParameters<NcrCarDetailDialog>
+        {
+            { x => x.Group, group }
+        };
+
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+
+        await DialogService.ShowAsync<NcrCarDetailDialog>(null, parameters, options);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        RefreshState.OnRefreshRequested -= HandleRefreshRequested;
+        _autoRefreshTimer?.Dispose();
+        _autoRefreshTimer = null;
+        return ValueTask.CompletedTask;
+    }
+}

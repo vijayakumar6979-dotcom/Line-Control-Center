@@ -1,0 +1,213 @@
+@using LineControlCenter.Application.DTOs
+@using MudBlazor
+
+<MudPaper Elevation="0"
+          Class="shift-card safety-card"
+          Style="--shift-color:#f59e0b;
+                 background:#0d1f3c;
+                 border:1px solid #1a3a5c;
+                 border-radius:20px;
+                 box-shadow:inset 0 3px 0 0 #f59e0b, 0 0 24px #f59e0b0a;">
+
+    @* ── Header ── *@
+    <div style="display:flex; align-items:center;
+                justify-content:space-between; margin-bottom:20px;">
+        <MudStack Row="true" AlignItems="MudAlignItems.Center" Spacing="2">
+            <div style="width:clamp(28px,3vw,40px); height:clamp(28px,3vw,40px); border-radius:12px;
+                        background:linear-gradient(135deg,#f59e0b18,#f59e0b08);
+                        border:1px solid #f59e0b33;
+                        display:flex; align-items:center; justify-content:center;
+                        position:relative; overflow:visible;">
+                <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety"
+                         Style="color:#f59e0b; font-size:clamp(14px,1.8vw,22px);" />
+                <div class="safety-icon-ping"
+                     style="border-color:@StatusColor;"></div>
+            </div>
+            <div>
+                <MudText Style="color:#f59e0b; font-family:'Orbitron',sans-serif;
+                               font-size:clamp(10px,1.2vw,14px); font-weight:700; letter-spacing:2px;">
+                    PENANG SAFETY (YTD)
+                </MudText>
+                <MudText Style="color:#7ab3cc; font-size:clamp(8px,0.9vw,10px); letter-spacing:1px;">
+                    @FiscalYearLabel
+                </MudText>
+            </div>
+        </MudStack>
+        @{
+            var badgeColor = DaysSinceLastIncident >= 90 ? "#22c55e"
+                           : DaysSinceLastIncident >= 30 ? "#f59e0b"
+                                                         : "#ff3b3b";
+            var badgeText  = DaysSinceLastIncident >= 90 ? "ALL CLEAR"
+                           : DaysSinceLastIncident >= 30 ? "MONITOR"
+                                                         : "ALERT";
+        }
+        <div style="border:1px solid @(badgeColor)44;
+                    background:@(badgeColor)0c;
+                    border-radius:20px; padding:5px 14px;
+                    display:flex; align-items:center; gap:6px;">
+            <div class="safety-status-dot"
+                 style="background:@badgeColor;
+                        box-shadow:0 0 8px @badgeColor;"></div>
+            <span style="color:@badgeColor; font-size:10px;
+                         font-weight:700; letter-spacing:2px;">
+                @badgeText
+            </span>
+        </div>
+    </div>
+
+    @* Error banner *@
+    @if (LoadError != null)
+    {
+        <div style="background:#1a0a0a; border:1px solid #ff3b3b44;
+                    border-radius:10px; padding:8px 14px; margin-bottom:12px;
+                    display:flex; align-items:center; gap:8px;">
+            <MudIcon Icon="@Icons.Material.Filled.Warning"
+                     Style="color:#ff3b3b; font-size:16px;" />
+            <span style="color:#ff3b3b; font-size:11px;">@LoadError</span>
+        </div>
+    }
+
+    @{
+        int days = DaysSinceLastIncident;
+    }
+
+    @* ── HERO: FY INCIDENTS ── *@
+    <div style="text-align:center; margin-bottom:10px;">
+        <div style="color:#f59e0b;
+                    font-family:'Orbitron',sans-serif;
+                    font-size:clamp(64px,8vw,96px);
+                    font-weight:900;
+                    line-height:1;
+                    letter-spacing:6px;
+                    text-shadow:0 0 48px #f59e0baa, 0 0 96px #f59e0b33;">
+            @TotalYtd
+        </div>
+        <div style="color:#f59e0b;
+                    font-size:clamp(12px,1.5vw,17px);
+                    letter-spacing:6px;
+                    font-weight:900;
+                    margin-top:8px;
+                    text-shadow:0 0 20px #f59e0b88;">
+            INCIDENTS
+        </div>
+        <div style="width:80px; height:2px;
+                    background:linear-gradient(90deg,transparent,#f59e0b,transparent);
+                    margin:10px auto 0;">
+        </div>
+    </div>
+
+    @* ── Secondary Metrics ── *@
+    <div style="display:grid; grid-template-columns:1fr 1fr;
+                gap:clamp(4px,0.8vw,10px); margin-bottom:12px;">
+
+        @* Days Without Incident tile *@
+        <div style="background:linear-gradient(160deg,#0a1628,#0d1f3c);
+                    border:1px solid @(StatusColor)33;
+                    border-radius:12px; padding:clamp(6px,1vw,12px) clamp(4px,0.8vw,10px); text-align:center;">
+            <div style="color:#7ab3cc; font-size:clamp(7px,0.9vw,9px);
+                        letter-spacing:2px; margin-bottom:4px;">
+                DAYS W/O INCIDENT
+            </div>
+            <div style="color:@StatusColor;
+                        font-size:clamp(22px,3vw,36px);
+                        font-weight:900;
+                        font-family:'Orbitron',sans-serif;
+                        line-height:1;
+                        text-shadow:0 0 18px @(StatusColor)55;">
+                @days
+            </div>
+        </div>
+
+        @* Last 30 Days tile *@
+        <div style="background:linear-gradient(160deg,#0a1628,#0d1f3c);
+                    border:1px solid @(TrendColor)22;
+                    border-radius:12px; padding:clamp(6px,1vw,12px) clamp(4px,0.8vw,10px); text-align:center;">
+            <div style="color:#7ab3cc; font-size:clamp(7px,0.9vw,9px);
+                        letter-spacing:2px; margin-bottom:4px;">
+                LAST @RecentDays DAYS
+            </div>
+            <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                <span style="color:@TrendColor; font-size:clamp(22px,3vw,36px);
+                             font-weight:900; font-family:'Orbitron',sans-serif;
+                             line-height:1;">
+                    @RecentCount
+                </span>
+                <MudIcon Icon="@TrendIcon"
+                         Style="@($"color:{TrendColor}; font-size:20px;")" />
+            </div>
+        </div>
+
+    </div>
+
+    @* Last incident date *@
+    <div style="text-align:center; margin-bottom:4px;">
+        <span style="color:#7ab3cc; font-size:10px; letter-spacing:1px;">
+            @(LastIncidentDate.HasValue
+                ? "LAST INCIDENT: " + LastIncidentDate.Value.ToString("dd MMM yyyy").ToUpper()
+                : "NO INCIDENTS THIS FISCAL YEAR")
+        </span>
+    </div>
+
+    @* ── Button ── *@
+    <MudButton Variant="MudVariant.Outlined"
+               FullWidth="true"
+               Size="MudSize.Small"
+               Class="safety-details-btn"
+               Style="border-color:#f59e0b33; color:#f59e0b; border-radius:8px;"
+               StartIcon="@Icons.Material.Filled.Shield"
+               OnClick="() => OnViewDetails.InvokeAsync()">
+        SAFETY DETAILS
+    </MudButton>
+
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public List<LccSafetyTblDto> Incidents      { get; set; } = [];
+    [Parameter]                 public string?               LoadError      { get; set; }
+    [Parameter]                 public EventCallback         OnViewDetails  { get; set; }
+
+    private const int RecentDays = 30;
+
+    private int       TotalYtd         => Incidents.Count;
+    private int       RecentCount      => Incidents.Count(x =>
+                                              x.IncidentDatetime.HasValue &&
+                                              x.IncidentDatetime.Value >= DateTime.Now.AddDays(-RecentDays));
+    private int       PreviousCount    => Incidents.Count(x =>
+                                              x.IncidentDatetime.HasValue &&
+                                              x.IncidentDatetime.Value >= DateTime.Now.AddDays(-RecentDays * 2) &&
+                                              x.IncidentDatetime.Value <  DateTime.Now.AddDays(-RecentDays));
+    private int       TrendDelta       => RecentCount - PreviousCount;
+    private string    TrendColor       => TrendDelta > 0 ? "#ff3b3b" : TrendDelta < 0 ? "#22c55e" : "#7ab3cc";
+    private string    TrendIcon        => TrendDelta > 0 ? Icons.Material.Filled.TrendingUp
+                                       : TrendDelta < 0 ? Icons.Material.Filled.TrendingDown
+                                                        : Icons.Material.Filled.TrendingFlat;
+    private string    TrendLabel       => TrendDelta == 0 ? "STABLE"
+                                       : TrendDelta  > 0 ? $"+{TrendDelta} VS PREV 30D"
+                                                         : $"{TrendDelta} VS PREV 30D";
+
+    private DateTime  FiscalYearStart  => DateTime.Now.Month >= 9
+                                              ? new DateTime(DateTime.Now.Year, 9, 1)
+                                              : new DateTime(DateTime.Now.Year - 1, 9, 1);
+    private DateTime  FiscalYearEnd    => FiscalYearStart.AddMonths(12).AddDays(-1);
+    private string    FiscalYearLabel  => $"SEP {FiscalYearStart.Year} \u2013 AUG {FiscalYearEnd.Year}";
+    private int       FiscalDaysElapsed => Math.Max(1, (int)(DateTime.Now - FiscalYearStart).TotalDays);
+
+    private DateTime? LastIncidentDate
+    {
+        get
+        {
+            var dates = Incidents
+                .Where(x => x.IncidentDatetime.HasValue)
+                .Select(x => x.IncidentDatetime!.Value)
+                .ToList();
+            return dates.Count > 0 ? dates.Max() : null;
+        }
+    }
+
+    private int    DaysSinceLastIncident => LastIncidentDate.HasValue
+                                               ? Math.Max(0, (int)(DateTime.Now - LastIncidentDate.Value).TotalDays)
+                                               : FiscalDaysElapsed;
+    private string StatusColor           => DaysSinceLastIncident >= 90 ? "#22c55e"
+                                          : DaysSinceLastIncident >= 30 ? "#f59e0b"
+                                                                         : "#ff3b3b";
+}

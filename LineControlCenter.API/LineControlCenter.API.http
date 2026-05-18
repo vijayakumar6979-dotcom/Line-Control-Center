@@ -1,0 +1,6 @@
+@LineControlCenter.API_HostAddress = http://localhost:5154
+
+GET {{LineControlCenter.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

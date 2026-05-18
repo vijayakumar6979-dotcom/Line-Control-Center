@@ -1,0 +1,102 @@
+/* ═══════════════════════════════════════════════════════════════
+   COLOR OVERRIDES — Force New Design System Colors
+   Load this AFTER design-system.css to override inline styles
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+    /* FORCE new colors to replace old hard-coded values */
+
+    /* Primary Cyan: #00d4ff → #00b4d8 */
+    --color-cyan-old: #00d4ff;
+    --color-cyan-new: #00b4d8;
+
+    /* Morning Orange: #ffaa00 → #f59e0b */  
+    --color-orange-old: #ffaa00;
+    --color-orange-new: #f59e0b;
+
+    /* Success Green: #00ff88 → #7ed957 */
+    --color-green-old: #00ff88;
+    --color-green-new: #7ed957;
+
+    /* Danger Red: #ff4444 → #ff3b3b */
+    --color-red-old: #ff4444;
+    --color-red-new: #ff3b3b;
+
+    /* Background Dark: #060d1f → #0a1628 */
+    --bg-dark-old: #060d1f;
+    --bg-dark-new: #0a1628;
+
+    /* Background Card: #0d1a2e → #0d1f3c */
+    --bg-card-old: #0d1a2e;
+    --bg-card-new: #0d1f3c;
+
+    /* Border: #0d2137 → #1a3a5c */
+    --border-old: #0d2137;
+    --border-new: #1a3a5c;
+
+    /* Text Muted: #8899aa → #7ab3cc */
+    --text-muted-old: #8899aa;
+    --text-muted-new: #7ab3cc;
+}
+
+/* Target elements with inline styles and override with !important */
+[style*="#00d4ff"] {
+    color: var(--color-accent-cyan) !important;
+    border-color: var(--color-accent-cyan) !important;
+}
+
+[style*="#ffaa00"] {
+    color: var(--color-shift-morning) !important;
+    border-color: var(--color-shift-morning) !important;
+}
+
+[style*="#00ff88"] {
+    color: var(--color-accent-green) !important;
+}
+
+[style*="#ff4444"] {
+    color: var(--color-status-red) !important;
+}
+
+[style*="#060d1f"] {
+    background-color: var(--color-bg-base) !important;
+}
+
+[style*="#0d1a2e"] {
+    background-color: var(--color-bg-card) !important;
+}
+
+[style*="#0d2137"] {
+    border-color: var(--color-border) !important;
+}
+
+[style*="#8899aa"] {
+    color: var(--color-text-secondary) !important;
+}
+
+/* MudBlazor component overrides */
+.mud-paper {
+    background-color: var(--color-bg-card) !important;
+}
+
+.mud-skeleton {
+    background-color: var(--color-border) !important;
+}
+
+/* Specific overrides for common patterns */
+.lcc-info-card [style*="#00d4ff"] {
+    color: var(--color-accent-cyan) !important;
+}
+
+.shift-card [style*="--shift-color:#ffaa00"] {
+    --shift-color: var(--color-shift-morning) !important;
+}
+
+.shift-card [style*="--shift-color:#00d4ff"] {
+    --shift-color: var(--color-shift-night) !important;
+}
+
+.safety-card [style*="#ff6b35"] {
+    color: var(--color-accent-orange) !important;
+    border-color: var(--color-accent-orange) !important;
+}

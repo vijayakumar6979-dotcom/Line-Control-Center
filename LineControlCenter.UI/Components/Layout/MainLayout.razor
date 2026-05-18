@@ -1,0 +1,331 @@
+@inherits LayoutComponentBase
+@inject LineControlCenter.UI.Services.RefreshStateService RefreshState
+@implements IDisposable
+
+<MudThemeProvider Theme="_theme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.ExtraLarge" />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0"
+               Style="background:#0a1628;
+        border-bottom:1px solid #1a3a5c;
+        height:52px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing"
+                     Style="color:#00b4d8; font-size:22px;
+                            filter:drop-shadow(0 0 6px #00b4d866);" />
+            <MudText Style="color:#00b4d8;
+                font-family:'Orbitron',sans-serif;
+                font-weight:700;
+                font-size:13px;
+                letter-spacing:3px;">
+                LINE CONTROL CENTER - BACKEND
+            </MudText>
+        </div>
+        <MudSpacer />
+
+        @if (RefreshState.IsDashboardActive)
+        {
+            <div style="display:flex; align-items:center; gap:clamp(8px,1vw,16px);">
+                @* -- Clock -- *@
+                <div style="text-align:right; line-height:1.1;">
+                    <div style="font-family:monospace; font-size:clamp(14px,1.6vw,22px);
+                                font-weight:700; color:#fff; letter-spacing:2px;">
+                        @RefreshState.CurrentTime
+                    </div>
+                    <div style="color:#7ab3cc; font-size:clamp(7px,0.7vw,9px); letter-spacing:2px;">
+                        @RefreshState.CurrentDate
+                    </div>
+                </div>
+
+                @* -- Divider -- *@
+                <div style="width:1px; height:28px; background:linear-gradient(transparent,#1a3a5c,transparent);"></div>
+
+                @* -- Circular refresh indicator -- *@
+                <div style="position:relative; width:34px; height:34px; flex-shrink:0;"
+                     title="Refresh in @(RefreshState.SecondsRemaining)s">
+                    <svg viewBox="0 0 36 36" style="width:34px; height:34px; transform:rotate(-90deg);">
+                        <circle cx="18" cy="18" r="15" fill="none"
+                                stroke="#1a3a5c" stroke-width="2.5" />
+                        <circle cx="18" cy="18" r="15" fill="none"
+                                stroke="url(#appbar-refresh-grad)" stroke-width="2.5"
+                                stroke-linecap="round"
+                                stroke-dasharray="@_circumference"
+                                stroke-dashoffset="@_refreshArcOffset"
+                                style="transition:stroke-dashoffset 0.6s cubic-bezier(.4,1.6,.6,1);" />
+                        <defs>
+                            <linearGradient id="appbar-refresh-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#2563eb" />
+                                <stop offset="100%" stop-color="#00b4d8" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div style="position:absolute; inset:0; display:flex; align-items:center;
+                                justify-content:center;">
+                        <span style="color:#00b4d8; font-size:10px; font-weight:700;
+                                     font-family:monospace; line-height:1;">
+                            @(RefreshState.SecondsRemaining)
+                        </span>
+                    </div>
+                </div>
+
+                @* -- Divider -- *@
+                <div style="width:1px; height:28px; background:linear-gradient(transparent,#1a3a5c,transparent);"></div>
+
+                @* -- Icon-only buttons -- *@
+                @* -- DPM Target button + popover -- *@
+                <div style="position:relative;">
+                    <MudTooltip Text="Set DPM Target" Placement="Placement.Bottom" Arrow="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.TrackChanges"
+                                       Size="MudSize.Small"
+                                       Style="@($"color:#f59e0b; border:1px solid #f59e0b40; border-radius:8px; width:34px; height:34px; background:{(_dpmPopoverOpen ? "#f59e0b18" : "transparent")};")"
+                                       aria-label="DPM Target"
+                                       OnClick="ToggleDpmPopover" />
+                    </MudTooltip>
+                    <MudPopover Open="@_dpmPopoverOpen"
+                                AnchorOrigin="Origin.BottomRight"
+                                TransformOrigin="Origin.TopRight"
+                                Style="z-index:2000;">
+                        <div style="background:#0d1f3c;
+                                    border:1px solid #f59e0b44;
+                                    border-radius:12px;
+                                    padding:16px 18px;
+                                    min-width:220px;
+                                    box-shadow:0 8px 32px #00000088;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                                <MudIcon Icon="@Icons.Material.Filled.TrackChanges"
+                                         Style="color:#f59e0b; font-size:18px;" />
+                                <span style="color:#f59e0b; font-family:'Orbitron',sans-serif;
+                                             font-size:10px; font-weight:700; letter-spacing:2px;">DPM TARGET</span>
+                            </div>
+                            <MudNumericField @bind-Value="_dpmTargetEdit"
+                                             Label="Target DPM"
+                                             Variant="MudVariant.Outlined"
+                                             Min="1"
+                                             Max="10000"
+                                             Style="margin-bottom:12px;"
+                                             Immediate="true" />
+                            <div style="display:flex; gap:8px;">
+                                <MudButton Variant="MudVariant.Filled"
+                                           Size="MudSize.Small"
+                                           Style="background:#f59e0b; color:#0a1628; font-weight:700;
+                                                  border-radius:8px; flex:1;"
+                                           OnClick="ApplyDpmTarget">APPLY</MudButton>
+                                <MudButton Variant="MudVariant.Outlined"
+                                           Size="MudSize.Small"
+                                           Style="border-color:#1a3a5c; color:#7ab3cc;
+                                                  border-radius:8px;"
+                                           OnClick="() => _dpmPopoverOpen = false">CANCEL</MudButton>
+                            </div>
+                            <div style="color:#7ab3cc; font-size:10px; margin-top:10px;
+                                        text-align:center; letter-spacing:1px;">
+                                CURRENT: @RefreshState.DpmTarget DPM
+                            </div>
+                        </div>
+                    </MudPopover>
+                </div>
+
+                <MudIconButton Icon="@Icons.Material.Filled.Tune"
+                               Size="MudSize.Small"
+                               Style="color:#00b4d8; border:1px solid #00b4d830; border-radius:8px;
+                                      width:34px; height:34px;"
+                               aria-label="Reconfigure"
+                               OnClick="OnReconfigureClick" />
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                               Size="MudSize.Small"
+                               Style="color:#00b4d8; border:1px solid #00b4d830; border-radius:8px;
+                                       width:34px; height:34px;"
+                               aria-label="Refresh"
+                               OnClick="OnRefreshClick" />
+
+                @* -- Screen Zoom button + popover -- *@
+                <div style="position:relative;">
+                    <MudTooltip Text="Adjust Screen Zoom" Placement="Placement.Bottom" Arrow="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.ZoomIn"
+                                       Size="MudSize.Small"
+                                       Style="@($"color:#00e5c0; border:1px solid #00e5c040; border-radius:8px; width:34px; height:34px; background:{(_zoomPopoverOpen ? "#00e5c018" : "transparent")};")"
+                                       aria-label="Adjust Screen Zoom"
+                                       OnClick="ToggleZoomPopover" />
+                    </MudTooltip>
+                    <MudPopover Open="@_zoomPopoverOpen"
+                                AnchorOrigin="Origin.BottomRight"
+                                TransformOrigin="Origin.TopRight"
+                                Style="z-index:2000;">
+                        <div style="background:#0d1f3c;
+                                    border:1px solid #00e5c044;
+                                    border-radius:12px;
+                                    padding:16px 18px;
+                                    min-width:260px;
+                                    box-shadow:0 8px 32px #00000088;">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+                                <MudIcon Icon="@Icons.Material.Filled.ZoomIn"
+                                         Style="color:#00e5c0; font-size:18px;" />
+                                <span style="color:#00e5c0; font-family:'Orbitron',sans-serif;
+                                             font-size:10px; font-weight:700; letter-spacing:2px;">SCREEN ZOOM</span>
+                            </div>
+
+                            @* SOMS zoom *@
+                            <div style="margin-bottom:12px;">
+                                <div style="color:#7ab3cc; font-size:9px; letter-spacing:1px; margin-bottom:6px;">
+                                    BACKEND — SOMS
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <MudSlider Value="_somsZoomEdit"
+                                               Min="0.3" Max="2.0" Step="0.05"
+                                               Style="flex:1;"
+                                               Color="Color.Info"
+                                               Immediate="true"
+                                               ValueChanged="@((double v) => ApplySomsZoom(v))" />
+                                    <span style="color:#00d4ff; font-size:10px; font-weight:700;
+                                                 font-family:monospace; min-width:36px; text-align:right;">
+                                        @(_somsZoomEdit.ToString("F2"))×
+                                    </span>
+                                </div>
+                            </div>
+
+                            @* Risk & Learning zoom *@
+                            <div style="margin-bottom:8px;">
+                                <div style="color:#7ab3cc; font-size:9px; letter-spacing:1px; margin-bottom:6px;">
+                                    RISK AND LEARNING
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <MudSlider Value="_riskZoomEdit"
+                                               Min="0.3" Max="2.0" Step="0.05"
+                                               Style="flex:1;"
+                                               Color="Color.Warning"
+                                               Immediate="true"
+                                               ValueChanged="@((double v) => ApplyRiskZoom(v))" />
+                                    <span style="color:#f59e0b; font-size:10px; font-weight:700;
+                                                 font-family:monospace; min-width:36px; text-align:right;">
+                                        @(_riskZoomEdit.ToString("F2"))×
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                                <MudButton Variant="MudVariant.Text" Size="MudSize.Small"
+                                           Style="color:#7ab3cc; font-size:10px;"
+                                           OnClick="ResetZoom">RESET</MudButton>
+                                <MudButton Variant="MudVariant.Text" Size="MudSize.Small"
+                                           Style="color:#7ab3cc; font-size:10px;"
+                                           OnClick="() => _zoomPopoverOpen = false">CLOSE</MudButton>
+                            </div>
+                        </div>
+                    </MudPopover>
+                </div>
+            </div>
+        }
+        else
+        {
+            <MudText Style="color:#3d6b8a;
+                font-size:11px;
+                letter-spacing:2px;">
+                DASHBOARD INACTIVE
+            </MudText>
+        }
+    </MudAppBar>
+
+    <MudMainContent Style="background:#0a1628;
+        min-height:100vh;
+        padding-top:52px;">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _dpmPopoverOpen  = false;
+    private int  _dpmTargetEdit   = 800;
+
+    private bool   _zoomPopoverOpen = false;
+    private double _somsZoomEdit    = 0.9;
+    private double _riskZoomEdit    = 0.9;
+
+    private void ToggleDpmPopover()
+    {
+        _dpmTargetEdit  = RefreshState.DpmTarget;
+        _dpmPopoverOpen = !_dpmPopoverOpen;
+    }
+
+    private void ApplyDpmTarget()
+    {
+        RefreshState.SetDpmTarget(_dpmTargetEdit);
+        _dpmPopoverOpen = false;
+    }
+
+    private void ToggleZoomPopover()
+    {
+        _somsZoomEdit   = RefreshState.SomsZoom;
+        _riskZoomEdit   = RefreshState.RiskZoom;
+        _zoomPopoverOpen = !_zoomPopoverOpen;
+    }
+
+    private void ApplySomsZoom(double v)
+    {
+        _somsZoomEdit = v;
+        RefreshState.SetSomsZoom(v);
+    }
+
+    private void ApplyRiskZoom(double v)
+    {
+        _riskZoomEdit = v;
+        RefreshState.SetRiskZoom(v);
+    }
+
+    private void ResetZoom()
+    {
+        _somsZoomEdit = 0.9;
+        _riskZoomEdit = 0.9;
+        RefreshState.SetSomsZoom(0.9);
+        RefreshState.SetRiskZoom(0.9);
+    }
+
+    private const double _circumference = 2 * Math.PI * 15;
+
+    private string _refreshArcOffset =>
+        (_circumference * (1 - RefreshState.Progress / 100.0))
+            .ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
+    private MudTheme _theme = new()
+    {
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#00b4d8",         // Bright cyan (was #00d4ff)
+            Secondary = "#00e5c0",       // Teal-green (was #00d4ff)
+            Success = "#22c55e",         // Status green (was #00ff88)
+            Warning = "#f59e0b",         // Status amber (was #ffaa00)
+            Error = "#ff3b3b",           // Status red (was #ff4444)
+            Background = "#0a1628",      // Deep navy (was #060d1f)
+            Surface = "#0d1f3c",         // Card background (was #0d1a2e)
+            AppbarBackground = "#0a1628",// Deep navy (was #060d1f)
+            TextPrimary = "#e8f4f8",     // Near-white (was #e0eaf8)
+            TextSecondary = "#7ab3cc"    // Muted label (was #8899aa)
+        }
+    };
+
+    protected override void OnInitialized()
+    {
+        RefreshState.OnChange += OnRefreshStateChanged;
+    }
+
+    private async void OnRefreshStateChanged()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnReconfigureClick()
+    {
+        await RefreshState.RequestReconfigure();
+    }
+
+    private async Task OnRefreshClick()
+    {
+        await RefreshState.RequestRefresh();
+    }
+
+    public void Dispose()
+    {
+        RefreshState.OnChange -= OnRefreshStateChanged;
+    }
+}

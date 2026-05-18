@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="LineControlCenter.Api/LineControlCenter.Api.csproj" Id="15bf970f-59af-4f0b-bca8-c476e583bc3c" />
+  <Project Path="LineControlCenter.Application/LineControlCenter.Application.csproj" Id="284df168-f3b5-423d-95d1-7c815e4dcd25" />
+  <Project Path="LineControlCenter.Domain/LineControlCenter.Domain.csproj" Id="88587cea-93a4-4c5f-b469-1bc7e8c979b9" />
+  <Project Path="LineControlCenter.Infrastructure/LineControlCenter.Infrastructure.csproj" Id="8652d876-8116-4d85-b969-60cd9ae4d02e" />
+  <Project Path="LineControlCenter.UI/LineControlCenter.UI.csproj" Id="2ac82988-3894-467e-b4ed-04c879080f08" />
+</Solution>

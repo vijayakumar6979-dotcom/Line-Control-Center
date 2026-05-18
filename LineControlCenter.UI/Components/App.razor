@@ -1,0 +1,56 @@
+﻿@using System.Security.Principal
+@using System.Runtime.Versioning
+@using LineControlCenter.UI.Services
+@inject IHttpContextAccessor HttpContextAccessor
+@inject UserSessionService UserSession
+
+@inject IConfiguration Configuration
+@{
+    var useWindowsAuth = bool.Parse(Configuration["Feedback:UseWindowsAuth"] ?? "false");
+
+    string? ntLogin = null;
+    if (useWindowsAuth)
+    {
+        // Try 1: HttpContext (works when Windows Auth is negotiated by IIS)
+        ntLogin = HttpContextAccessor.HttpContext?.User?.Identity?.Name;
+
+        // Try 2: WindowsIdentity of the server process (Kestrel dev fallback)
+        if (string.IsNullOrWhiteSpace(ntLogin) && OperatingSystem.IsWindows())
+            ntLogin = GetCurrentWindowsUser();
+    }
+
+    UserSession.SetNtLogin(ntLogin);
+}
+
+@code {
+    [SupportedOSPlatform("windows")]
+    private static string? GetCurrentWindowsUser()
+    {
+        try { return WindowsIdentity.GetCurrent().Name; }
+        catch { return null; }
+    }
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LINE CONTROL CENTER - BACKEND</title>
+    <base href="/" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet" />
+    <link href="css/design-system.css" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="_content/Radzen.Blazor/css/default-base.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link href="css/color-overrides.css" rel="stylesheet" />
+</head>
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="js/export-helper.js"></script>
+    <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
+    <RadzenComponents @rendermode="InteractiveServer" />
+</body>
+</html>

@@ -1,0 +1,487 @@
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.Application.Queries.Compliance
+@using MudBlazor
+@inject IJSRuntime JS
+@inject MediatR.ISender Mediator
+@inject LineControlCenter.Application.Interfaces.IEmailReportService EmailReportService
+@inject ISnackbar Snackbar
+
+<MudDialog Style="background:#0a1628; border-radius:20px; overflow:hidden;">
+    <DialogContent>
+        <div style="display:flex; flex-direction:column; height:82vh; max-height:82vh;">
+
+            @* ── Header ── *@
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:20px 24px 14px; flex-shrink:0;
+                        background:linear-gradient(135deg,#0d1f3c 0%,#0a1628 100%);
+                        border-bottom:1px solid #1a3a5c;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:42px; height:42px; border-radius:12px;
+                                background:linear-gradient(135deg,#00d4ff20,#00d4ff08);
+                                border:1px solid #00d4ff44;
+                                display:flex; align-items:center; justify-content:center;">
+                        <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber"
+                                 Style="color:#00d4ff; font-size:22px;" />
+                    </div>
+                    <div>
+                        <div style="color:#00d4ff; font-family:'Orbitron',sans-serif;
+                                    font-size:14px; font-weight:800; letter-spacing:2px;">
+                            QRQC TICKETS · DETAILS
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:2px; flex-wrap:wrap;">
+                            <span style="color:#7ab3cc; font-size:10px;">MSI GP · HLA PROCESS</span>
+                            <span style="color:#3d6b8a;">·</span>
+                            <span style="color:#00d4ff; font-size:10px; font-weight:700;">
+                                @_displayTickets.Count TOTAL
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <MudTooltip Text="Send Report by Email" Placement="Placement.Bottom">
+                        <MudIconButton Icon="@Icons.Material.Filled.Email"
+                                       Size="MudSize.Small"
+                                       Style="@($"color:#00d4ff; background:{(_showEmailPanel ? "#00d4ff22" : "#0d1f3c")}; border:1px solid {(_showEmailPanel ? "#00d4ff66" : "#1a3a5c")}; border-radius:10px; width:36px; height:36px;")"
+                                       OnClick="() => _showEmailPanel = !_showEmailPanel" />
+                    </MudTooltip>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Size="MudSize.Small"
+                                   Style="color:#e8f4f8; background:#0d1f3c; border:1px solid #1a3a5c;
+                                          border-radius:10px; width:36px; height:36px;"
+                                   OnClick="Cancel" />
+                </div>
+            </div>
+
+            @* ── Email compose panel ── *@
+            @if (_showEmailPanel)
+            {
+                <div style="padding:14px 24px; background:#070f1e; border-bottom:1px solid #00d4ff22; flex-shrink:0;">
+                    <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:200px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">TO (comma or semicolon separated)</div>
+                            <MudTextField @bind-Value="_emailTo" Placeholder="user@example.com"
+                                          Variant="MudBlazor.Variant.Outlined" Margin="Margin.Dense"
+                                          Style="background:#0a1628;" Disabled="@_sendingEmail" />
+                        </div>
+                        <div style="flex:2; min-width:200px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">NOTE (optional)</div>
+                            <MudTextField @bind-Value="_emailNote" Placeholder="Add a note..."
+                                          Variant="MudBlazor.Variant.Outlined" Margin="Margin.Dense"
+                                          Style="background:#0a1628;" Disabled="@_sendingEmail" />
+                        </div>
+                        <MudButton Variant="MudBlazor.Variant.Filled"
+                                   Style="background:#00b4d8; color:#fff; border-radius:10px; height:40px; min-width:140px; font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:1px;"
+                                   OnClick="SendEmailReportAsync"
+                                   Disabled="@(_sendingEmail || string.IsNullOrWhiteSpace(_emailTo))">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                @if (_sendingEmail)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:16px; height:16px; color:#fff;" />
+                                    <span>SENDING...</span>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Send" Style="font-size:16px;" />
+                                    <span>SEND REPORT</span>
+                                }
+                            </div>
+                        </MudButton>
+                    </div>
+                </div>
+            }
+
+            @* ── Date-range toolbar ── *@
+            <div style="padding:10px 24px; background:#060e1c; border-bottom:1px solid #0d2137; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    @foreach (var period in Enum.GetValues<QrqcPeriod>())
+                    {
+                        var isActive = _activePeriod == period;
+                        var label    = period switch
+                        {
+                            QrqcPeriod.CurrentWeek => "CURRENT WEEK",
+                            QrqcPeriod.LastWeek    => "LAST WEEK",
+                            QrqcPeriod.Last1Month  => "1 MONTH",
+                            QrqcPeriod.Last3Months => "3 MONTHS",
+                            _                      => "CUSTOM"
+                        };
+                        <button style="@($"padding:5px 14px; border-radius:20px; border:1px solid {(isActive ? "#00d4ff" : "#1a3a5c")}; background:{(isActive ? "#00d4ff22" : "#0a1628")}; color:{(isActive ? "#00d4ff" : "#7ab3cc")}; font-family:'Orbitron',sans-serif; font-size:9px; letter-spacing:1.5px; cursor:pointer; transition:all .2s;")"
+                                @onclick="() => OnPeriodClicked(period)">
+                            @label
+                        </button>
+                    }
+                    @if (_loadingData)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true"
+                                             Style="width:18px; height:18px; color:#00d4ff; margin-left:8px;" />
+                    }
+                </div>
+
+                @* Custom date pickers *@
+                @if (_activePeriod == QrqcPeriod.Custom)
+                {
+                    <div style="display:flex; align-items:flex-end; gap:10px; margin-top:10px; flex-wrap:wrap;">
+                        <div style="min-width:160px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">FROM</div>
+                            <MudDatePicker @bind-Date="_customFrom"
+                                           Variant="MudBlazor.Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           DateFormat="dd MMM yyyy"
+                                           Style="background:#0a1628;"
+                                           Disabled="@_loadingData" />
+                        </div>
+                        <div style="min-width:160px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">TO</div>
+                            <MudDatePicker @bind-Date="_customTo"
+                                           Variant="MudBlazor.Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           DateFormat="dd MMM yyyy"
+                                           Style="background:#0a1628;"
+                                           Disabled="@_loadingData" />
+                        </div>
+                        <MudButton Variant="MudBlazor.Variant.Filled"
+                                   Style="background:#00b4d8; color:#fff; border-radius:10px; height:40px; min-width:100px; font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:1px;"
+                                   OnClick="ApplyCustomRange"
+                                   Disabled="@(_loadingData || _customFrom is null || _customTo is null)">
+                            APPLY
+                        </MudButton>
+                    </div>
+                }
+            </div>
+
+            @* ── Content ── *@
+            <div style="flex:1; overflow-y:auto; padding:16px 24px 20px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;
+                            gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+                    <MudTextField @bind-Value="_searchText"
+                                  Placeholder="Search any column..."
+                                  Variant="MudVariant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true"
+                                  DebounceInterval="250"
+                                  Style="max-width:360px; font-size:12px;" />
+                    <div style="display:flex; gap:8px;">
+                        <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                                   StartIcon="@Icons.Material.Filled.TableChart"
+                                   Style="border-color:#00ff8833; color:#00ff88; border-radius:8px;"
+                                   OnClick="ExportToExcel">EXCEL</MudButton>
+                        <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                                   StartIcon="@Icons.Material.Filled.Description"
+                                   Style="border-color:#00d4ff33; color:#00d4ff; border-radius:8px;"
+                                   OnClick="ExportToCsv">CSV</MudButton>
+                    </div>
+                </div>
+
+                @* ── Data Grid ── *@
+                <MudDataGrid T="LccQrqcTicketDto"
+                             Items="FilteredTickets"
+                             Loading="@_loadingData"
+                             SortMode="SortMode.Multiple"
+                             Dense="true"
+                             Hover="true"
+                             RowsPerPage="25"
+                             Style="background:#0d1a2e; border:1px solid #0d2137; border-radius:14px; overflow:hidden;">
+                    <Columns>
+
+                        <PropertyColumn Property="x => x.TicketId" Title="Ticket ID"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#00d4ff; font-family:monospace; font-size:12px; font-weight:700;" />
+
+                        <PropertyColumn Property="x => x.QrapId" Title="QRAP ID"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:11px;" />
+
+                        <PropertyColumn Property="x => x.CreationDate" Title="Created"
+                                        Format="dd MMM yyyy HH:mm"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
+
+                        <PropertyColumn Property="x => x.Customer" Title="Customer"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.Process" Title="Process"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.Bay" Title="Bay"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.Batch" Title="Batch"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:11px;" />
+
+                        <PropertyColumn Property="x => x.Symptom" Title="Symptom"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        @* Step badge *@
+                        <TemplateColumn Title="Step" SortBy="x => x.Step"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var stepColor = context.Item.Step == "Closure" ? "#22c55e" : "#f59e0b";
+                                }
+                                <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                                            border-radius:12px; background:@(stepColor)15; border:1px solid @(stepColor)44;">
+                                    <span style="color:@stepColor; font-size:10px; font-weight:700; letter-spacing:1px;">
+                                        @(context.Item.Step ?? "—")
+                                    </span>
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+
+                        @* Status badge *@
+                        <TemplateColumn Title="Status" SortBy="x => x.Status"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var isOpen   = string.Equals(context.Item.Status, "Open", StringComparison.OrdinalIgnoreCase);
+                                    var sc       = isOpen ? "#f59e0b" : "#22c55e";
+                                }
+                                <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                                            border-radius:12px; background:@(sc)15; border:1px solid @(sc)44;">
+                                    <div style="width:6px; height:6px; border-radius:50%; background:@sc;"></div>
+                                    <span style="color:@sc; font-size:10px; font-weight:700; letter-spacing:1px;">
+                                        @(context.Item.Status ?? "—")
+                                    </span>
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+
+                        @* Aging badge *@
+                        <TemplateColumn Title="Aging (Days)" SortBy="x => x.AgingDays"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var aging  = context.Item.AgingDays;
+                                    var ac     = aging >= 30 ? "#ff3b3b" : aging >= 14 ? "#f59e0b" : "#22c55e";
+                                }
+                                <span style="color:@ac; font-family:'Orbitron',sans-serif;
+                                             font-size:12px; font-weight:900;">
+                                    @aging
+                                </span>
+                            </CellTemplate>
+                        </TemplateColumn>
+
+                        <PropertyColumn Property="x => x.UpdatedDatetime" Title="Last Updated"
+                                        Format="dd MMM yyyy HH:mm"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
+
+                    </Columns>
+                    <PagerContent>
+                        <MudDataGridPager T="LccQrqcTicketDto" PageSizeOptions="new[] { 10, 25, 50, 100 }" />
+                    </PagerContent>
+                </MudDataGrid>
+            </div>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    // ── Dialog parameters ────────────────────────────────────────────────
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    /// <summary>Pre-loaded tickets passed from the dashboard (current-week snapshot).</summary>
+    [Parameter] public List<LccQrqcTicketDto> Tickets { get; set; } = [];
+
+    // ── Date-range state ─────────────────────────────────────────────────
+    private enum QrqcPeriod { CurrentWeek, LastWeek, Last1Month, Last3Months, Custom }
+
+    private QrqcPeriod          _activePeriod   = QrqcPeriod.CurrentWeek;
+    private DateTime?           _customFrom;
+    private DateTime?           _customTo;
+    private bool                _loadingData    = false;
+    private List<LccQrqcTicketDto> _displayTickets = [];
+    private bool                _initialized    = false;
+
+    protected override void OnParametersSet()
+    {
+        if (!_initialized)
+        {
+            _displayTickets = new List<LccQrqcTicketDto>(Tickets);
+            _initialized    = true;
+        }
+    }
+
+    private async Task OnPeriodClicked(QrqcPeriod period)
+    {
+        _activePeriod = period;
+        if (period == QrqcPeriod.CurrentWeek)
+        {
+            // Restore the dashboard snapshot — no extra query needed
+            _displayTickets = new List<LccQrqcTicketDto>(Tickets);
+            StateHasChanged();
+            return;
+        }
+        if (period == QrqcPeriod.Custom)
+        {
+            // Show the custom pickers; don't load yet
+            StateHasChanged();
+            return;
+        }
+
+        var today = DateTime.Today;
+        var (from, to) = period switch
+        {
+            QrqcPeriod.LastWeek    => (today.AddDays(-(((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7) - 7),
+                                       today.AddDays(-(((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7) - 1).AddDays(1).AddSeconds(-1)),
+            QrqcPeriod.Last1Month  => (today.AddMonths(-1), today.AddDays(1).AddSeconds(-1)),
+            QrqcPeriod.Last3Months => (today.AddMonths(-3), today.AddDays(1).AddSeconds(-1)),
+            _                      => (today, today)
+        };
+
+        await LoadTicketsAsync(from, to);
+    }
+
+    private async Task ApplyCustomRange()
+    {
+        if (_customFrom is null || _customTo is null) return;
+        await LoadTicketsAsync(_customFrom.Value, _customTo.Value.AddDays(1).AddSeconds(-1));
+    }
+
+    private async Task LoadTicketsAsync(DateTime from, DateTime to)
+    {
+        _loadingData = true;
+        StateHasChanged();
+        try
+        {
+            var result = await Mediator.Send(new GetQrqcTicketsDateRangeQuery(from, to));
+            if (result.IsSuccess)
+                _displayTickets = result.Value.ToList();
+            else
+                Snackbar.Add($"Load failed: {result.Error}", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading tickets: {ex.Message}", Severity.Error);
+        }
+        finally { _loadingData = false; StateHasChanged(); }
+    }
+
+    // ── Search / filter ──────────────────────────────────────────────────
+    private string _searchText = string.Empty;
+
+    private IEnumerable<LccQrqcTicketDto> FilteredTickets =>
+        string.IsNullOrWhiteSpace(_searchText)
+            ? _displayTickets
+            : _displayTickets.Where(x => MatchesSearch(x, _searchText));
+
+    private static bool MatchesSearch(LccQrqcTicketDto x, string term) =>
+        Contains(x.QrapId,    term) ||
+        Contains(x.Batch,     term) ||
+        Contains(x.Bay,       term) ||
+        Contains(x.Status,    term) ||
+        Contains(x.Customer,  term) ||
+        Contains(x.Step,      term) ||
+        Contains(x.Process,   term) ||
+        Contains(x.Symptom,   term) ||
+        x.TicketId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase) ||
+        x.CreationDate.ToString("dd MMM yyyy").Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private static bool Contains(string? value, string term) =>
+        (value ?? string.Empty).Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    // ── Email report ─────────────────────────────────────────────────────
+    private bool   _showEmailPanel = false;
+    private string _emailTo        = string.Empty;
+    private string _emailNote      = string.Empty;
+    private bool   _sendingEmail   = false;
+
+    private async Task SendEmailReportAsync()
+    {
+        _sendingEmail = true;
+        StateHasChanged();
+        try
+        {
+            await EmailReportService.SendQrqcReportAsync(_emailTo, _displayTickets, _emailNote);
+            Snackbar.Add("QRQC report sent successfully!", Severity.Success, cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.MarkEmailRead;
+                cfg.VisibleStateDuration = 4000;
+            });
+            _showEmailPanel = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to send: {ex.Message}", Severity.Error, cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.ErrorOutline;
+                cfg.VisibleStateDuration = 6000;
+            });
+        }
+        finally { _sendingEmail = false; StateHasChanged(); }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task ExportToCsv()
+    {
+        var rows = FilteredTickets.ToList();
+        var sb   = new System.Text.StringBuilder();
+        sb.AppendLine("Ticket ID,QRAP ID,Created,Customer,Process,Bay,Batch,Symptom,Step,Status,Aging Days,Last Updated");
+
+        foreach (var r in rows)
+        {
+            sb.AppendLine(string.Join(",",
+                r.TicketId,
+                Q(r.QrapId),
+                Q(r.CreationDate.ToString("dd MMM yyyy HH:mm")),
+                Q(r.Customer),
+                Q(r.Process),
+                Q(r.Bay),
+                Q(r.Batch),
+                Q(r.Symptom),
+                Q(r.Step),
+                Q(r.Status),
+                r.AgingDays,
+                Q(r.UpdatedDatetime.ToString("dd MMM yyyy HH:mm"))));
+        }
+
+        var bytes    = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var base64   = Convert.ToBase64String(bytes);
+        var fileName = $"qrqc_tickets_{PeriodLabel()}_{DateTime.Today:yyyyMMdd}.csv";
+        await JS.InvokeVoidAsync("downloadBase64File", base64, fileName, "text/csv");
+    }
+
+    private async Task ExportToExcel()
+    {
+        var rows = FilteredTickets.ToList();
+        var sb   = new System.Text.StringBuilder();
+        sb.AppendLine("Ticket ID\tQRAP ID\tCreated\tCustomer\tProcess\tBay\tBatch\tSymptom\tStep\tStatus\tAging Days\tLast Updated");
+
+        foreach (var r in rows)
+        {
+            sb.AppendLine(string.Join("\t",
+                r.TicketId,
+                r.QrapId,
+                r.CreationDate.ToString("dd MMM yyyy HH:mm"),
+                r.Customer,
+                r.Process,
+                r.Bay,
+                r.Batch,
+                r.Symptom,
+                r.Step,
+                r.Status,
+                r.AgingDays,
+                r.UpdatedDatetime.ToString("dd MMM yyyy HH:mm")));
+        }
+
+        var bytes    = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var base64   = Convert.ToBase64String(bytes);
+        var fileName = $"qrqc_tickets_{PeriodLabel()}_{DateTime.Today:yyyyMMdd}.xls";
+        await JS.InvokeVoidAsync("downloadBase64File", base64, fileName, "application/vnd.ms-excel");
+    }
+
+    private string PeriodLabel() => _activePeriod switch
+    {
+        QrqcPeriod.CurrentWeek  => "current_week",
+        QrqcPeriod.LastWeek     => "last_week",
+        QrqcPeriod.Last1Month   => "last_1month",
+        QrqcPeriod.Last3Months  => "last_3months",
+        _                       => "custom"
+    };
+
+    private static string Q(string? v) => $"\"{(v ?? string.Empty).Replace("\"", "\"\"")}\"";
+}

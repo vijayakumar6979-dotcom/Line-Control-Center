@@ -1,0 +1,1440 @@
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.UI.Models
+@using MudBlazor
+@using Radzen
+@using Radzen.Blazor
+@inject IJSRuntime JS
+
+<MudDialog Style="background:#0a1628; border-radius:20px; overflow:hidden;">
+    <DialogContent>
+        <div style="display:flex; flex-direction:column; height:85vh; max-height:85vh;">
+
+            @* ── Fixed Header with Close Button ── *@
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:20px 28px 16px; flex-shrink:0;
+                        background:linear-gradient(135deg,#0d1f3c 0%,#0a1628 100%);
+                        border-bottom:1px solid #1a3a5c;">
+                <div style="display:flex; align-items:center; gap:16px;">
+                    <div style="width:46px; height:46px; border-radius:14px;
+                                background:linear-gradient(135deg,@(_shiftColor)20,@(_shiftColor)08);
+                                border:1px solid @(_shiftColor)44;
+                                display:flex; align-items:center; justify-content:center;
+                                box-shadow:0 0 20px @(_shiftColor)15;">
+                        <MudIcon Icon="@_shiftIcon" Style="@($"color:{_shiftColor}; font-size:24px;")" />
+                    </div>
+                    <div>
+                        <div style="color:@_shiftColor; font-family:'Orbitron',sans-serif;
+                                    font-size:15px; font-weight:800; letter-spacing:3px; margin-bottom:3px;">
+                            @Card.Shift.ToUpper() SHIFT &nbsp;·&nbsp; QUALITY ANALYSIS
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="background:@(_shiftColor)15; border:1px solid @(_shiftColor)30;
+                                         color:@_shiftColor; font-size:10px; letter-spacing:1px;
+                                         padding:2px 10px; border-radius:20px; font-weight:600;">
+                                @Card.ShiftDate
+                            </span>
+                            <span style="color:#7ab3cc; font-size:10px;">@Card.Customer</span>
+                            <span style="color:#3d6b8a;">·</span>
+                            <span style="color:#7ab3cc; font-size:10px;">@Card.Division</span>
+                            <span style="color:#3d6b8a;">·</span>
+                            <span style="color:#7ab3cc; font-size:10px;">@Card.Family</span>
+                        </div>
+                    </div>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Size="MudSize.Small"
+                               Style="color:#e8f4f8; background:#0d1f3c; border:1px solid #1a3a5c;
+                                      border-radius:10px; width:36px; height:36px;
+                                      transition:all 0.2s ease;"
+                               title="Close"
+                               OnClick="Cancel" />
+            </div>
+
+            @* ── Scrollable Body ── *@
+            <div style="flex:1; overflow-y:auto; overflow-x:hidden; padding:0 28px 28px;">
+
+            @* ── Tab Navigation ── *@
+            <div style="display:flex; gap:4px; margin:20px 0 24px;
+                        background:#0d1f3c; border-radius:14px; padding:5px;
+                        border:1px solid #1a3a5c;">
+                @{
+                    var tabs = new (int Key, string Label, string Icon)[]
+                    {
+                        (0, "QUALITY INTELLIGENCE",   Icons.Material.Filled.QueryStats),
+                        (1, "PREDICTIVE ANALYTICS",   Icons.Material.Filled.AutoAwesome),
+                        (2, "PRODUCTION RECORDS",     Icons.Material.Filled.TableView)
+                    };
+                }
+                @foreach (var tab in tabs)
+                {
+                    var active = _activeTab == tab.Key;
+                    var k = tab.Key;
+                    <button style="flex:1; padding:10px 12px; border-radius:10px; cursor:pointer;
+                                   display:flex; align-items:center; justify-content:center; gap:8px;
+                                   font-size:11px; font-weight:700; letter-spacing:2px;
+                                   font-family:inherit; transition:all 0.2s ease;
+                                   @(active
+                                       ? $"background:linear-gradient(135deg,{_shiftColor}20,{_shiftColor}08); border:1px solid {_shiftColor}44; color:{_shiftColor}; box-shadow:0 2px 12px {_shiftColor}15;"
+                                       : "background:transparent; border:1px solid transparent; color:#7ab3cc;")"
+                            @onclick="() => _activeTab = k">
+                        <MudIcon Icon="@tab.Icon" Style="font-size:16px;" />
+                        @tab.Label
+                    </button>
+                }
+            </div>
+
+            @* ════════════════════════════════════════════════
+               TAB 1: DEFECT & QUALITY ANALYSIS
+               ════════════════════════════════════════════════ *@
+            @if (_activeTab == 0)
+            {
+                @* ── Row 1: KPI Strip ── *@
+                <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-bottom:16px;">
+                    @{
+                        var kpis = new (string Icon, string Label, string Value, string Sub, string Color)[]
+                        {
+                            (Icons.Material.Filled.ErrorOutline,          "FAILURES",      _failedRecords.Count.ToString("N0"),          "first-pass",                "#ff4444"),
+                            (Icons.Material.Filled.ReportProblem,         "TOP MODE",      _highestFailureName,                          _top10Failures.Any() ? _top10Failures[0].Count + " hits" : "–", "#ff6b35"),
+                            (Icons.Material.Filled.PrecisionManufacturing,"WORST PROC",   _topFailProcess,                              _topProcessCount + " fail",  "#ffaa00"),
+                            (Icons.Material.Filled.Category,              "WORST FAM",    _mostAffectedFamily,                          _topFamilyCount + " fail",   "#00d4ff"),
+                            (Icons.Material.Filled.VerifiedUser,          "YIELD",        Card.YieldRate + "%",                         _yieldLabel,                 _yieldColor),
+                            (Icons.Material.Filled.PieChart,              "CONC.",        _defectConcentration.ToString("F1") + "%",    "top mode share",            "#aa55ff")
+                        };
+                    }
+                    @foreach (var kpi in kpis)
+                    {
+                        <div style="background:#0b1422; border:1px solid #1a3a5c;
+                                    border-radius:10px; padding:10px 12px;
+                                    position:relative; overflow:hidden;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                        background:linear-gradient(90deg,transparent,@(kpi.Color),transparent); opacity:0.6;"></div>
+                            <div style="display:flex; align-items:center; gap:7px; margin-bottom:6px;">
+                                <MudIcon Icon="@kpi.Icon" Style="@($"color:{kpi.Color}; font-size:13px;")" />
+                                <span style="color:#667788; font-size:8px; letter-spacing:2px; font-weight:700;">@kpi.Label</span>
+                            </div>
+                            <div style="color:@(kpi.Color); font-size:15px; font-weight:800;
+                                        font-family:'Orbitron',monospace; line-height:1;
+                                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                                 title="@kpi.Value">@kpi.Value</div>
+                            <div style="color:#8899aa; font-size:9px; margin-top:3px;
+                                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@kpi.Sub</div>
+                        </div>
+                    }
+                </div>
+
+                @* ── Row 2: Sankey + Breakdown side-by-side ── *@
+                <div style="display:grid; grid-template-columns:1fr 320px; gap:12px; margin-bottom:12px;">
+
+                @* LEFT: Sankey Diagram *@
+                <div style="background:#0b1422; border:1px solid #1a3a5c;
+                            border-radius:12px; padding:16px 18px;
+                            position:relative; overflow:hidden;">
+                    <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                background:linear-gradient(90deg,#ff4444,#ffaa00,#00d4ff); opacity:0.6;"></div>
+
+                    @* Panel header *@
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:3px; height:18px; background:linear-gradient(#ff4444,#ffaa00); border-radius:2px;"></div>
+                            <span style="color:#aabbcc; font-size:10px; font-weight:700; letter-spacing:2px;">
+                                DEFECT FLOW &nbsp;·&nbsp; FAMILY → PROCESS → FAILURE
+                            </span>
+                        </div>
+                        @if (_sankeyFlows.Any())
+                        {
+                            <div style="display:flex; align-items:center; gap:5px; padding:4px 10px;
+                                        background:#ff444412; border:1px solid #ff444428; border-radius:20px;">
+                                <div style="width:5px; height:5px; border-radius:50%; background:#ff4444;
+                                            box-shadow:0 0 5px #ff4444; animation:lcc-kpi-pulse 1.8s ease-in-out infinite;"></div>
+                                <span style="color:#ff6666; font-size:9px; font-weight:700; letter-spacing:1px;">
+                                    @_top10Failures.Count MODES
+                                </span>
+                            </div>
+                        }
+                    </div>
+
+                    @if (_sankeyFlows.Any())
+                    {
+                        <div class="lcc-rz-chart lcc-sankey" style="height:320px; margin:0 -10px;">
+                            <RadzenSankeyDiagram TItem="SankeyFlowData"
+                                                 Data="@_sankeyFlows"
+                                                 SourceProperty="Source"
+                                                 TargetProperty="Target"
+                                                 ValueProperty="Value"
+                                                 SourceLabelProperty="SourceLabel"
+                                                 TargetLabelProperty="TargetLabel"
+                                                 ColorScheme="ColorScheme.Palette"
+                                                 Style="height:100%; width:100%;">
+                            </RadzenSankeyDiagram>
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="display:flex; flex-direction:column; align-items:center;
+                                    justify-content:center; height:200px; gap:10px;">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                     Style="color:#00ff88; font-size:40px;" />
+                            <div style="color:#00ff88; font-size:13px; font-weight:700;">Zero Failures Detected</div>
+                            <div style="color:#8899aa; font-size:11px;">All units passed first-pass testing this shift</div>
+                        </div>
+                    }
+                </div>
+
+                @* RIGHT: Family + Process Breakdown stacked *@
+                <div style="display:flex; flex-direction:column; gap:10px;">
+
+                    @* Family Breakdown *@
+                    <div style="background:#0b1422; border:1px solid #1a3a5c;
+                                border-radius:12px; padding:14px 16px;
+                                position:relative; overflow:hidden; flex:1;">
+                        <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                    background:linear-gradient(90deg,transparent,#00d4ff,transparent); opacity:0.5;"></div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                            <MudIcon Icon="@Icons.Material.Filled.Category" Style="color:#00d4ff; font-size:13px;" />
+                            <span style="color:#00d4ff; font-size:9px; font-weight:700; letter-spacing:2px;">FAMILIES</span>
+                        </div>
+                        @if (_familyBreakdown.Any())
+                        {
+                            var famMax = _familyBreakdown[0].Count;
+                            @foreach (var fam in _familyBreakdown.Take(5))
+                            {
+                                var famPct = famMax > 0 ? (fam.Count / (double)famMax * 100) : 0;
+                                var famSharePct = _failedRecords.Count > 0 ? (fam.Count / (double)_failedRecords.Count * 100) : 0;
+                                <div style="margin-bottom:8px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px;">
+                                        <span style="color:#c8d8e8; font-size:10px; font-weight:600;
+                                                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:58%;"
+                                              title="@fam.Failure">@fam.Failure</span>
+                                        <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                                            <span style="color:#00d4ff; font-size:11px; font-weight:700; font-family:monospace;">@fam.Count</span>
+                                            <span style="color:#667788; font-size:9px;">@famSharePct.ToString("F0")%</span>
+                                        </div>
+                                    </div>
+                                    <div style="height:4px; background:#0a1428; border-radius:3px; overflow:hidden;">
+                                        <div style="height:100%; width:@(famPct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;
+                                                    background:linear-gradient(90deg,#00d4ff88,#0077aa88);
+                                                    border-radius:3px; transition:width 0.6s ease;"></div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div style="text-align:center; padding:20px 0; color:#445566; font-size:11px;">No family data</div>
+                        }
+                    </div>
+
+                    @* Process Breakdown *@
+                    <div style="background:#0b1422; border:1px solid #1a3a5c;
+                                border-radius:12px; padding:14px 16px;
+                                position:relative; overflow:hidden; flex:1;">
+                        <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                    background:linear-gradient(90deg,transparent,#ffaa00,transparent); opacity:0.5;"></div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                            <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Style="color:#ffaa00; font-size:13px;" />
+                            <span style="color:#ffaa00; font-size:9px; font-weight:700; letter-spacing:2px;">PROCESSES</span>
+                        </div>
+                        @if (_processBreakdown.Any())
+                        {
+                            var procMax = _processBreakdown[0].Count;
+                            @foreach (var proc in _processBreakdown.Take(5))
+                            {
+                                var procPct = procMax > 0 ? (proc.Count / (double)procMax * 100) : 0;
+                                var procYield = _processYields.TryGetValue(proc.Failure, out var py) ? py : 100.0;
+                                var procYieldColor = procYield >= 98 ? "#00ff88" : procYield >= 90 ? "#ffaa00" : "#ff4444";
+                                <div style="margin-bottom:8px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px;">
+                                        <span style="color:#c8d8e8; font-size:10px; font-weight:600;
+                                                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:55%;"
+                                              title="@proc.Failure">@proc.Failure</span>
+                                        <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                                            <span style="color:#ffaa00; font-size:11px; font-weight:700; font-family:monospace;">@proc.Count</span>
+                                            <span style="color:@procYieldColor; font-size:9px; font-weight:600;">@procYield.ToString("F0")%Y</span>
+                                        </div>
+                                    </div>
+                                    <div style="height:4px; background:#0a1428; border-radius:3px; overflow:hidden;">
+                                        <div style="height:100%; width:@(procPct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;
+                                                    background:linear-gradient(90deg,#ffaa0088,#cc770088);
+                                                    border-radius:3px; transition:width 0.6s ease;"></div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div style="text-align:center; padding:20px 0; color:#445566; font-size:11px;">No process data</div>
+                        }
+                    </div>
+
+                </div>
+                </div>
+
+                @* ── AI Analysis Summary ── *@
+                @if (_aiSummaryItems.Any())
+                {
+                    <div style="background:#0b1422; border:1px solid #aa55ff22;
+                                border-radius:12px; padding:14px 18px;
+                                position:relative; overflow:hidden; margin-top:12px;">
+                        <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                    background:linear-gradient(90deg,transparent,#aa55ff,transparent); opacity:0.5;"></div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                            <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Style="color:#aa55ff; font-size:13px;" />
+                            <span style="color:#aa55ff; font-size:9px; font-weight:700; letter-spacing:2px;">AI ANALYSIS SUMMARY</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            @foreach (var item in _aiSummaryItems)
+                            {
+                                <div style="display:flex; gap:8px; padding:9px 12px;
+                                            background:#aa55ff08; border:1px solid #aa55ff18;
+                                            border-left:2px solid #aa55ff55; border-radius:0 8px 8px 0;">
+                                    <MudIcon Icon="@Icons.Material.Filled.Insights"
+                                             Style="color:#aa55ff; font-size:13px; flex-shrink:0; margin-top:1px;" />
+                                    <span style="color:#b8c8d8; font-size:11px; line-height:1.5;">@item</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            @* ════════════════════════════════════════════════
+               TAB 2: AI INSIGHTS
+               ════════════════════════════════════════════════ *@
+            @if (_activeTab == 1)
+            {
+                @* ── Quality Intelligence Score Banner ── *@
+                <div style="background:linear-gradient(135deg,#0d1a2e 0%,#0a1020 100%);
+                            border:1px solid #aa55ff22; border-radius:16px;
+                            padding:20px 24px; margin-bottom:14px;
+                            position:relative; overflow:hidden;">
+                    <div style="position:absolute; top:0; left:0; right:0; height:2px;
+                                background:linear-gradient(90deg,#aa55ff,#00d4ff,#00ff88); opacity:0.7;"></div>
+                    <div style="display:grid; grid-template-columns:auto 1fr auto; gap:20px; align-items:center;">
+
+                        @* Score Ring *@
+                        <div style="position:relative; width:88px; height:88px; flex-shrink:0;">
+                            <svg viewBox="0 0 88 88" style="width:88px; height:88px;
+                                                            transform:rotate(-90deg);
+                                                            filter:drop-shadow(0 0 10px @(_qualityScoreColor)44);">
+                                <circle cx="44" cy="44" r="36" fill="none" stroke="#0d2137" stroke-width="7" />
+                                <circle cx="44" cy="44" r="36" fill="none"
+                                        stroke="@_qualityScoreColor" stroke-width="7"
+                                        stroke-dasharray="226.2"
+                                        stroke-dashoffset="@((226.2 * (1.0 - _qualityScore / 100.0)).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
+                                        stroke-linecap="round" />
+                            </svg>
+                            <div style="position:absolute; inset:0; display:flex; flex-direction:column;
+                                        align-items:center; justify-content:center; pointer-events:none;">
+                                <div style="color:@_qualityScoreColor; font-size:20px; font-weight:900;
+                                            font-family:'Orbitron',sans-serif; line-height:1;">@_qualityScore</div>
+                                <div style="color:@_qualityScoreColor; font-size:14px; font-weight:800;
+                                            font-family:'Orbitron',sans-serif;">@_qualityScoreGrade</div>
+                            </div>
+                        </div>
+
+                        @* Title + Metric Pills *@
+                        <div>
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                                <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Style="color:#aa55ff; font-size:15px;" />
+                                <span style="color:#aa55ff; font-size:10px; font-weight:700; letter-spacing:3px;">
+                                    QUALITY INTELLIGENCE SCORE
+                                </span>
+                            </div>
+                            <div style="color:@_qualityScoreColor; font-size:13px; font-weight:600; margin-bottom:14px;">
+                                @_qualityScoreLabel
+                            </div>
+                            @{
+                                var fp2    = Card.Records.Count(r => r.TestLoopCount == 1);
+                                var dpu2   = fp2 > 0 ? _failedRecords.Count / (double)fp2 : 0.0;
+                                var ml2    = Card.Records.Where(r => r.TestLoopCount > 1).Select(r => r.SerialNumber).Distinct().Count();
+                                var pills  = new (string Label, string Value, string Color)[]
+                                {
+                                    ("YIELD",    Card.YieldRate + "%",            _qualityScoreColor),
+                                    ("FAILURES", _failedRecords.Count.ToString(), _failedRecords.Count > 0 ? "#ff6b35" : "#00ff88"),
+                                    ("RE-TESTS", ml2.ToString(),                  ml2 > 0 ? "#ffaa00" : "#00ff88"),
+                                    ("DPU",      dpu2.ToString("F3"),             dpu2 > 0.05 ? "#ff4444" : dpu2 > 0.01 ? "#ffaa00" : "#00ff88")
+                                };
+                            }
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                @foreach (var pill in pills)
+                                {
+                                    <div style="display:flex; align-items:center; gap:5px; padding:5px 12px;
+                                                background:#0b1422; border:1px solid #1a3a5c;
+                                                border-radius:20px;">
+                                        <span style="color:#667788; font-size:8px; letter-spacing:1px; font-weight:700;">@pill.Label</span>
+                                        <span style="color:@pill.Color; font-size:12px; font-weight:800; font-family:'Orbitron',monospace;">@pill.Value</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        @* Risk Badge *@
+                        @{
+                            var riskColor = _qualityScore >= 95 ? "#00ff88" : _qualityScore >= 90 ? "#ffaa00" : "#ff4444";
+                            var riskIcon  = _qualityScore >= 95 ? Icons.Material.Filled.Shield
+                                          : _qualityScore >= 90 ? Icons.Material.Filled.Warning
+                                                                 : Icons.Material.Filled.Error;
+                            var riskLabel = _qualityScore >= 95 ? "LOW RISK"
+                                          : _qualityScore >= 90 ? "MED RISK" : "HIGH RISK";
+                        }
+                        <div style="display:flex; flex-direction:column; align-items:center; gap:6px;
+                                    padding:14px 20px; background:@(riskColor)0a;
+                                    border:1px solid @(riskColor)33; border-radius:12px;">
+                            <MudIcon Icon="@riskIcon"
+                                     Style="@($"color:{riskColor}; font-size:30px; filter:drop-shadow(0 0 6px {riskColor}66);")" />
+                            <span style="color:@riskColor; font-size:9px; font-weight:700; letter-spacing:2px;">@riskLabel</span>
+                        </div>
+                    </div>
+                </div>
+
+                @* ── Priority Actions ── *@
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;">
+                    @foreach (var action in _priorityActions)
+                    {
+                        var ac = action.Urgency == "CRITICAL" ? "#ff4444"
+                               : action.Urgency == "WARNING"  ? "#ffaa00"
+                                                              : "#00d4ff";
+                        var ai = action.Urgency == "CRITICAL" ? Icons.Material.Filled.PriorityHigh
+                               : action.Urgency == "WARNING"  ? Icons.Material.Filled.Warning
+                                                              : Icons.Material.Filled.Info;
+                        var impactColor = action.Impact == "HIGH" ? "#ff4444" : action.Impact == "MEDIUM" ? "#ffaa00" : "#667788";
+                        var effortColor = action.Effort == "HIGH" ? "#ff6b35" : action.Effort == "MEDIUM" ? "#ffaa00" : "#00ff88";
+                        <div style="background:linear-gradient(160deg,#0d1a2e,#0a1020);
+                                    border:1px solid #1a3a5c;
+                                    border-radius:14px; padding:16px;
+                                    position:relative; overflow:hidden;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                        background:linear-gradient(90deg,transparent,@(ac),transparent); opacity:0.7;
+                                        pointer-events:none;"></div>
+                            <div style="position:absolute; top:0; left:0; right:0; height:40px;
+                                        background:linear-gradient(180deg,@(ac)08,transparent); pointer-events:none;"></div>
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <div style="width:22px; height:22px; border-radius:6px;
+                                                background:@(ac)18; border:1px solid @(ac)44;
+                                                display:flex; align-items:center; justify-content:center;">
+                                        <MudIcon Icon="@ai" Style="@($"color:{ac}; font-size:13px;")" />
+                                    </div>
+                                    <span style="color:@ac; font-size:8px; font-weight:700; letter-spacing:2px;">@action.Urgency</span>
+                                </div>
+                                <span style="color:#445566; font-size:8px; letter-spacing:1px;
+                                             background:#0a1020; border:1px solid #1a3a5c;
+                                             padding:2px 7px; border-radius:10px;">@action.Category</span>
+                            </div>
+                            <div style="color:#e0eaf8; font-size:12px; font-weight:700; margin-bottom:6px; line-height:1.3;">
+                                @action.Title
+                            </div>
+                            <div style="color:#8899aa; font-size:10px; line-height:1.5; margin-bottom:10px;">
+                                @action.Detail
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <div style="display:flex; align-items:center; gap:4px; padding:3px 8px;
+                                            background:@(impactColor)10; border:1px solid @(impactColor)30; border-radius:10px;">
+                                    <span style="color:#8899aa; font-size:7px; letter-spacing:1px;">IMPACT</span>
+                                    <span style="color:@impactColor; font-size:8px; font-weight:700;">@action.Impact</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:4px; padding:3px 8px;
+                                            background:@(effortColor)10; border:1px solid @(effortColor)30; border-radius:10px;">
+                                    <span style="color:#8899aa; font-size:7px; letter-spacing:1px;">EFFORT</span>
+                                    <span style="color:@effortColor; font-size:8px; font-weight:700;">@action.Effort</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @* ── Analysis Grid ── *@
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+
+                    @* LEFT: Pareto + Hourly Timeline *@
+                    <div style="display:flex; flex-direction:column; gap:12px">
+
+                        @* Pareto Analysis *@
+                        <div style="background:#0b1422; border:1px solid #1a3a5c;
+                                    border-radius:12px; padding:16px; position:relative; overflow:hidden;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                        background:linear-gradient(90deg,#ff4444,#ffaa00,transparent); opacity:0.7;"></div>
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                                <MudIcon Icon="@Icons.Material.Filled.BarChart" Style="color:#ff6b35; font-size:14px;" />
+                                <span style="color:#ff6b35; font-size:9px; font-weight:700; letter-spacing:2px;">PARETO ANALYSIS</span>
+                                <span style="color:#445566; font-size:7px; margin-left:auto; letter-spacing:1px;">CUMULATIVE %</span>
+                            </div>
+                            @if (_paretoRows.Any())
+                            {
+                                @foreach (var row in _paretoRows.Take(8))
+                                {
+                                    var isVital  = row.CumPct <= 80;
+                                    var barColor = isVital ? "#ff4444" : "#ff6b3344";
+                                    var cumColor = row.CumPct <= 80 ? "#ffaa00" : "#8899aa";
+                                    <div style="margin-bottom:8px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px;">
+                                            <span style="color:@(isVital ? "#e0eaf8" : "#667788"); font-size:9px;
+                                                         font-weight:@(isVital ? "600" : "400");
+                                                         white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:54%;"
+                                                  title="@row.Failure">@row.Failure</span>
+                                            <div style="display:flex; gap:5px; align-items:center; flex-shrink:0;">
+                                                <span style="color:#ff6b35; font-size:10px; font-weight:700; font-family:monospace;">@row.Count</span>
+                                                <span style="color:#8899aa; font-size:8px;">@row.SharePct.ToString("F0")%</span>
+                                                <span style="color:@cumColor; font-size:8px; font-weight:600; min-width:28px; text-align:right;">
+                                                    @row.CumPct.ToString("F0")%↑
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div style="height:3px; background:#0a1428; border-radius:2px; overflow:hidden;">
+                                            <div style="height:100%; width:@(row.SharePct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))%;
+                                                        background:@barColor; border-radius:2px; transition:width 0.6s ease;"></div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div style="text-align:center; padding:20px 0; color:#445566; font-size:11px;">No failure data</div>
+                            }
+                        </div>
+
+                        @* Hourly Defect Timeline *@
+                        <div style="background:#0b1422; border:1px solid #1a3a5c;
+                                    border-radius:12px; padding:16px; position:relative; overflow:hidden;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                        background:linear-gradient(90deg,transparent,#00d4ff,transparent); opacity:0.6;"></div>
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Timeline" Style="color:#00d4ff; font-size:14px;" />
+                                <span style="color:#00d4ff; font-size:9px; font-weight:700; letter-spacing:2px;">HOURLY DEFECT TIMELINE</span>
+                            </div>
+                            @if (_hourlyDefects.Any())
+                            {
+                                @((MarkupString)BuildHourlySvg())
+                                <div style="display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                                    <div style="width:8px; height:8px; border-radius:2px; background:#ff4444; flex-shrink:0;"></div>
+                                    <span style="color:#8899aa; font-size:9px;">Peak: @(HourlyPeak?.Hour ?? 0):00 — @(HourlyPeak?.Count ?? 0) failures</span>
+                                    <div style="width:8px; height:8px; border-radius:2px; background:#00d4ff99; flex-shrink:0; margin-left:8px;"></div>
+                                    <span style="color:#8899aa; font-size:9px;">Other hours</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div style="text-align:center; padding:20px 0; color:#445566; font-size:11px;">
+                                    No timestamped failure data
+                                </div>
+                            }
+                        </div>
+
+                    </div>
+
+                    @* RIGHT: Operator Intelligence + Intelligence Feed *@
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+
+                        @* Operator Intelligence *@
+                        <div style="background:#0b1422; border:1px solid #1a3a5c;
+                                    border-radius:12px; padding:16px; position:relative; overflow:hidden;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                        background:linear-gradient(90deg,transparent,#ffaa00,transparent); opacity:0.6;"></div>
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Style="color:#ffaa00; font-size:14px;" />
+                                <span style="color:#ffaa00; font-size:9px; font-weight:700; letter-spacing:2px;">OPERATOR INTELLIGENCE</span>
+                            </div>
+                            @if (_operatorInsights.Any())
+                            {
+                                <div style="display:grid; grid-template-columns:1fr 36px 36px 72px;
+                                            gap:4px; margin-bottom:6px; padding:0 2px;">
+                                    <span style="color:#334455; font-size:7px; letter-spacing:1px; font-weight:700;">OPERATOR</span>
+                                    <span style="color:#334455; font-size:7px; letter-spacing:1px; font-weight:700; text-align:center;">FAIL</span>
+                                    <span style="color:#334455; font-size:7px; letter-spacing:1px; font-weight:700; text-align:center;">TOTAL</span>
+                                    <span style="color:#334455; font-size:7px; letter-spacing:1px; font-weight:700; text-align:right;">YIELD</span>
+                                </div>
+                                @foreach (var op in _operatorInsights)
+                                {
+                                    var opColor = op.Yield >= 98 ? "#00ff88" : op.Yield >= 90 ? "#ffaa00" : "#ff4444";
+                                    <div style="display:grid; grid-template-columns:1fr 36px 36px 72px;
+                                                gap:4px; padding:7px 4px; margin-bottom:4px;
+                                                background:#060d1f; border-radius:8px;
+                                                border:1px solid @(opColor)18;">
+                                        <span style="color:#c8d8e8; font-size:10px; font-weight:600;
+                                                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                                              title="@op.Operator">@op.Operator</span>
+                                        <span style="color:#ff6b35; font-size:10px; font-weight:700;
+                                                     font-family:monospace; text-align:center;">@op.Failures</span>
+                                        <span style="color:#667788; font-size:10px; font-family:monospace;
+                                                     text-align:center;">@op.Total</span>
+                                        <div style="display:flex; align-items:center; gap:4px;">
+                                            <div style="flex:1; height:3px; background:#0a1428; border-radius:2px; overflow:hidden;">
+                                                <div style="height:100%; width:@(op.Yield.ToString("F0"))%;
+                                                            background:@opColor; border-radius:2px;"></div>
+                                            </div>
+                                            <span style="color:@opColor; font-size:9px; font-weight:700;
+                                                         font-family:monospace; flex-shrink:0;">@op.Yield.ToString("F0")%</span>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div style="text-align:center; padding:16px 0; color:#445566; font-size:11px;">
+                                    No operator data available
+                                </div>
+                            }
+                        </div>
+
+                        @* Intelligence Feed *@
+                        <div style="background:#0b1422; border:1px solid #1a3a5c;
+                                    border-radius:12px; padding:16px; flex:1;
+                                    position:relative; overflow:hidden; display:flex; flex-direction:column;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                        background:linear-gradient(90deg,transparent,#aa55ff,transparent); opacity:0.7;"></div>
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-shrink:0;">
+                                <MudIcon Icon="@Icons.Material.Filled.Insights" Style="color:#aa55ff; font-size:14px;" />
+                                <span style="color:#aa55ff; font-size:9px; font-weight:700; letter-spacing:2px;">INTELLIGENCE FEED</span>
+                                <div style="margin-left:auto; padding:2px 8px;
+                                            background:#aa55ff12; border:1px solid #aa55ff22; border-radius:10px;">
+                                    <span style="color:#aa55ff; font-size:8px; font-weight:700;">@_allInsights.Count SIGNALS</span>
+                                </div>
+                            </div>
+                            <div style="overflow-y:auto; display:flex; flex-direction:column; gap:6px; flex:1; padding-right:2px;">
+                                @foreach (var insight in _allInsights)
+                                {
+                                    var ic = insight.Severity switch { "high" => "#ff4444", "medium" => "#ffaa00", _ => "#00ff88" };
+                                    var ii = insight.Severity switch { "high" => Icons.Material.Filled.Error, "medium" => Icons.Material.Filled.Warning, _ => Icons.Material.Filled.CheckCircle };
+                                    var catColor = insight.Category switch
+                                    {
+                                        "ROOT CAUSE" => "#ff4444",
+                                        "PROCESS"    => "#ff6b35",
+                                        "PATTERN"    => "#ffaa00",
+                                        "CAPACITY"   => "#00d4ff",
+                                        "RISK"       => "#ff4444",
+                                        "RECOMMEND"  => "#00ff88",
+                                        _            => "#aa55ff"
+                                    };
+                                    <div style="display:flex; gap:8px; padding:8px 10px;
+                                                background:#0b1422; border:1px solid #1a3a5c;
+                                                border-radius:8px;">
+                                        <MudIcon Icon="@ii" Style="@($"color:{ic}; font-size:13px; flex-shrink:0; margin-top:1px;")" />
+                                        <div style="min-width:0;">
+                                            @if (!string.IsNullOrEmpty(insight.Category))
+                                            {
+                                                <div style="color:@catColor; font-size:7px; font-weight:700;
+                                                            letter-spacing:1.5px; margin-bottom:2px;">@insight.Category</div>
+                                            }
+                                            <div style="color:#c8d8e8; font-size:10px; line-height:1.5;">@insight.Text</div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            }
+
+            @* ════════════════════════════════════════════════
+               TAB 3: DATA
+               ════════════════════════════════════════════════ *@
+            @if (_activeTab == 2)
+            {
+                <div style="display:flex; align-items:center; justify-content:space-between;
+                            gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:200px;">
+                        <MudTextField @bind-Value="_searchText"
+                                      Placeholder="Search serial, failure, operator..."
+                                      Variant="MudVariant.Outlined"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true"
+                                      Style="max-width:350px; font-size:12px;"
+                                      DebounceInterval="300" />
+                        <MudSwitch @bind-Value="_failedOnly"
+                                   Label="Failed Only"
+                                   Color="MudColor.Error"
+                                   Style="color:#e0eaf8;" />
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                                   StartIcon="@Icons.Material.Filled.TableChart"
+                                   Style="border-color:#00ff8833; color:#00ff88; border-radius:8px;"
+                                   OnClick="ExportToExcel">EXCEL</MudButton>
+                        <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                                   StartIcon="@Icons.Material.Filled.Description"
+                                   Style="border-color:#00d4ff33; color:#00d4ff; border-radius:8px;"
+                                   OnClick="ExportToCsv">CSV</MudButton>
+                    </div>
+                </div>
+
+                @* <div style="display:grid; grid-template-columns:repeat(8,1fr); gap:6px; margin-bottom:16px;">
+                    @foreach (var st in GetProductionStats(FilteredDataRecords.ToList()))
+                    {
+                        <div style="background:#0d1a2e; border:1px solid @(st.Color)22;
+                                    border-radius:10px; padding:8px 10px;
+                                    position:relative; overflow:hidden;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:1px;
+                                        background:linear-gradient(90deg,transparent,@(st.Color),transparent); opacity:0.5;"></div>
+                            <div style="display:flex; align-items:center; gap:5px; margin-bottom:4px;">
+                                <MudIcon Icon="@st.Icon" Style="@($"color:{st.Color}; font-size:11px;")" />
+                                <span style="color:#445566; font-size:7px; letter-spacing:1.5px; font-weight:700;">@st.Label</span>
+                            </div>
+                            <div style="color:@(st.Color); font-size:13px; font-weight:800;
+                                        font-family:'Orbitron',monospace; line-height:1;
+                                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                                 title="@st.Value">@st.Value</div>
+                        </div>
+                    }
+                </div> *@
+
+                <div style="display:grid; grid-template-columns:repeat(8,1fr); gap:6px; margin-bottom:16px;">
+                    @foreach (var st in GetProductionStats(FilteredDataRecords.ToList()))
+                    {
+                        <div style="background:#0d1a2e; border:1px solid #1a3a5c;
+                                    border-radius:10px; padding:8px 10px;
+                                    position:relative; overflow:hidden;">
+                            <div style="position:absolute; top:0; left:0; right:0; height:1px;
+                                        background:linear-gradient(90deg,transparent,@(st.Color),transparent); opacity:0.5;"></div>
+                            <div style="display:flex; align-items:center; gap:5px; margin-bottom:4px;">
+                                <MudIcon Icon="@st.Icon" Style="@($"color:{st.Color}; font-size:11px;")" />
+                                <span style="color:#445566; font-size:7px; letter-spacing:1.5px; font-weight:700;">@st.Label</span>
+                            </div>
+                            <div style="color:@(st.Color); font-size:13px; font-weight:800;
+                                        font-family:'Orbitron',monospace; line-height:1;
+                                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                                 title="@st.Value">@st.Value</div>
+                        </div>
+                    }
+                </div>
+
+                <MudDataGrid T="BkTestTarRawDatumDto"
+                             Items="@FilteredDataRecords"
+                             Filterable="true"
+                             FilterMode="DataGridFilterMode.ColumnFilterRow"
+                             SortMode="SortMode.Multiple"
+                             Dense="true"
+                             Hover="true"
+                             RowsPerPage="25"
+                             Style="background:#0d1a2e; border:1px solid #1a3a5c; border-radius:14px; overflow:hidden;">
+                    <Columns>
+                        <PropertyColumn Property="x => x.SerialNumber" Title="Serial #"
+                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:12px;" />
+                        <PropertyColumn Property="x => x.Family" Title="Family"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+                        <PropertyColumn Property="x => x.Process" Title="Process"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+                        <TemplateColumn Title="Status" SortBy="x => x.TestStatus">
+                            <CellTemplate>
+                                @{
+                                    var isp = context.Item.TestStatus == "P";
+                                    var sc2 = isp ? "#00ff88" : "#ff4444";
+                                    var st2 = isp ? "PASS" : "FAIL";
+                                }
+                                <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                                            border-radius:12px; background:@(sc2)15; border:1px solid @(sc2)44;">
+                                    <div style="width:6px; height:6px; border-radius:50%; background:@sc2;"></div>
+                                    <span style="color:@sc2; font-size:10px; font-weight:700; letter-spacing:1px;">@st2</span>
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.TestFailure" Title="Failure"
+                                        CellStyle="color:#ff8888; font-size:12px;" />
+                        <PropertyColumn Property="x => x.Operator" Title="Operator"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+                        <PropertyColumn Property="x => x.TesterName" Title="Tester"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+                        <PropertyColumn Property="x => x.Number" Title="Number"
+                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:12px;" />
+                        <PropertyColumn Property="x => x.StartDateTime" Title="Start" Format="MM/dd HH:mm"
+                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
+                        <PropertyColumn Property="x => x.EndDateTime" Title="End" Format="MM/dd HH:mm"
+                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
+                        <PropertyColumn Property="x => x.TestLoopCount" Title="Loop"
+                                        CellStyle="color:#8899aa; font-family:monospace; font-size:12px;" />
+                        <TemplateColumn Title="Loop Status" SortBy="x => x.TestLoopCount">
+                            <CellTemplate>
+                                @{
+                                    var isFirst = context.Item.TestLoopCount == 1;
+                                    var lsColor = isFirst ? "#00d4ff" : "#ffaa00";
+                                    var lsLabel = isFirst ? "FIRST PASS" : $"REWORK ×{context.Item.TestLoopCount}";
+                                    var lsIcon  = isFirst ? Icons.Material.Filled.FlashOn : Icons.Material.Filled.Replay;
+                                }
+                                <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px;
+                                            border-radius:10px; background:@(lsColor)12; border:1px solid @(lsColor)33;">
+                                    <MudIcon Icon="@lsIcon" Style="@($"color:{lsColor}; font-size:10px;")" />
+                                    <span style="color:@lsColor; font-size:9px; font-weight:700; letter-spacing:0.5px;">@lsLabel</span>
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Cycle Time" SortBy="x => (x.EndDateTime.HasValue && x.StartDateTime.HasValue) ? (x.EndDateTime.Value - x.StartDateTime.Value).TotalSeconds : 0">
+                            <CellTemplate>
+                                @{
+                                    var hasTimes = context.Item.StartDateTime.HasValue && context.Item.EndDateTime.HasValue;
+                                    var cycSecs  = hasTimes ? (context.Item.EndDateTime!.Value - context.Item.StartDateTime!.Value).TotalSeconds : 0.0;
+                                    var cycColor = cycSecs <= 0 ? "#334455" : cycSecs < 60 ? "#00ff88" : cycSecs < 300 ? "#ffaa00" : "#ff4444";
+                                    var cycText  = cycSecs <= 0 ? "—" : cycSecs < 60 ? $"{cycSecs:F0}s" : $"{cycSecs / 60:F1}m";
+                                }
+                                <span style="color:@cycColor; font-family:monospace; font-size:11px; font-weight:600;">@cycText</span>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Signal" SortBy="x => x.TestStatus">
+                            <CellTemplate>
+                                @{
+                                    var r       = context.Item;
+                                    var isPass  = r.TestStatus == "P";
+                                    var isRwk   = r.TestLoopCount > 1;
+                                    var sigText = (!isPass)  ? "⚠ DEFECT"
+                                                : isRwk     ? "↩ REWORK PASS"
+                                                :              "✓ CLEAN";
+                                    var sigColor = (!isPass) ? "#ff4444" : isRwk ? "#ffaa00" : "#00ff8866";
+                                }
+                                <span style="color:@sigColor; font-size:9px; font-weight:700; letter-spacing:0.5px;">@sigText</span>
+                            </CellTemplate>
+                        </TemplateColumn>
+                    </Columns>
+                    <PagerContent>
+                        <MudDataGridPager T="BkTestTarRawDatumDto" PageSizeOptions="new[] { 10, 25, 50, 100 }" />
+                    </PagerContent>
+                </MudDataGrid>
+            }
+
+                    </div>
+                </div>
+            </DialogContent>
+        </MudDialog>
+
+<style>
+    /* ── Radzen chart dark-theme overrides ── */
+    .lcc-rz-chart .rz-svg text,
+    .lcc-rz-chart text {
+        fill: #8899aa !important;
+        font-family: 'Segoe UI', 'Helvetica Neue', sans-serif !important;
+    }
+    .lcc-rz-chart .rz-grid-line {
+        stroke: #0d2137 !important;
+    }
+    .lcc-rz-chart .rz-axis-line,
+    .lcc-rz-chart .rz-tick-line {
+        stroke: #1a2a3e !important;
+    }
+    .lcc-rz-chart .rz-chart-body,
+    .lcc-rz-chart svg {
+        background: transparent !important;
+    }
+    .lcc-rz-chart .rz-data-labels text {
+        fill: #e0eaf8 !important;
+        font-weight: 700 !important;
+        font-size: 11px !important;
+    }
+    .lcc-rz-chart .rz-bar-series rect,
+    .lcc-rz-chart .rz-bar-series path {
+        transition: opacity 0.2s ease;
+    }
+    .lcc-rz-chart .rz-bar-series rect:hover,
+    .lcc-rz-chart .rz-bar-series path:hover {
+        opacity: 0.85 !important;
+    }
+    /* Tooltip styling */
+    .rz-tooltip {
+        background: #0d1a2e !important;
+        border: 1px solid #00d4ff44 !important;
+        border-radius: 10px !important;
+        color: #e0eaf8 !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.6) !important;
+    }
+    @@keyframes lcc-kpi-pulse {
+        0%, 100% { opacity: 0.5; transform: scale(0.85); }
+        50%       { opacity: 1;   transform: scale(1.15); }
+    }
+
+    /* ── Sankey wrapper: transparent bg ── */
+    .lcc-sankey,
+    .lcc-sankey svg {
+        background: transparent !important;
+    }
+
+    /* ── Sankey: node rectangles ──
+       Boost saturation+brightness on rects only so the Palette colors
+       pop against #060d1f without affecting text readability.          ── */
+    .lcc-sankey svg rect {
+        opacity:    1 !important;
+        filter:     saturate(1.6) brightness(1.3) !important;
+        transition: filter 0.2s ease;
+    }
+    .lcc-sankey svg rect:hover {
+        filter: saturate(2) brightness(1.5) !important;
+    }
+
+    /* ── Sankey: label text — bright white, thick dark halo ── */
+    .lcc-sankey svg text,
+    .lcc-sankey svg tspan {
+        fill:            #ffffff !important;
+        font-size:       9px !important;
+        font-family:     'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
+        font-weight:     800 !important;
+        stroke:          #020810 !important;
+        stroke-width:    3.5px !important;
+        stroke-linejoin: round !important;
+        paint-order:     stroke fill !important;
+        filter:          none !important;
+    }
+
+    /* ── Sankey: flow links — translucent ribbons boosted for dark bg ── */
+    .lcc-sankey svg path {
+        opacity:    0.55 !important;
+        filter:     saturate(1.4) brightness(1.2) !important;
+        transition: opacity 0.25s ease, filter 0.25s ease;
+    }
+    .lcc-sankey svg path:hover {
+        opacity: 0.82 !important;
+        filter:  saturate(1.8) brightness(1.4) !important;
+    }
+</style>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public CardModel Card { get; set; } = new();
+
+    private int    _activeTab  = 0;
+    private string _shiftColor => Card.Shift == "Morning" ? "#ffaa00" : "#00d4ff";
+    private string _shiftIcon  => Card.Shift == "Morning"
+        ? Icons.Material.Filled.WbSunny
+        : Icons.Material.Filled.NightsStay;
+
+    // ── Tab 1 computed state ──
+    private List<BkTestTarRawDatumDto> _failedRecords    = new();
+    private List<FailureRank>       _top10Failures    = new();
+    private List<SankeyFlowData>    _sankeyFlows      = new();
+    private List<FailureRank>       _familyBreakdown  = new();
+    private List<FailureRank>       _processBreakdown = new();
+    private Dictionary<string, double> _processYields = new();
+
+    private string _highestFailureName  = "N/A";
+    private string _topFailProcess      = "N/A";
+    private string _mostAffectedFamily  = "N/A";
+    private int    _topProcessCount;
+    private int    _topFamilyCount;
+    private double _defectConcentration;
+    private List<string> _aiSummaryItems = new();
+
+    private string _yieldColor => Card.YieldRate >= 98 ? "#00ff88"
+                                : Card.YieldRate >= 90 ? "#ffaa00"
+                                                       : "#ff4444";
+    private string _yieldLabel => Card.YieldRate >= 98 ? "on target"
+                                : Card.YieldRate >= 90 ? "below target"
+                                                       : "at risk";
+
+    // ── Tab 2 enhanced state ──
+    private int    _qualityScore;
+    private string _qualityScoreGrade = "";
+    private string _qualityScoreColor = "";
+    private string _qualityScoreLabel = "";
+    private List<PriorityAction>  _priorityActions  = new();
+    private List<ParetoRow>       _paretoRows       = new();
+    private List<HourlyBucket>    _hourlyDefects    = new();
+    private List<OperatorInsight> _operatorInsights = new();
+    private List<InsightItem>     _allInsights      = new();
+
+    // ── Tab 3 state ──
+    private string _searchText = "";
+    private bool   _failedOnly = false;
+
+    private IEnumerable<BkTestTarRawDatumDto> FilteredDataRecords
+    {
+        get
+        {
+            IEnumerable<BkTestTarRawDatumDto> records = Card.Records;
+            if (_failedOnly)
+                records = records.Where(r => r.TestStatus != "P");
+            if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                var s = _searchText.Trim();
+                records = records.Where(r =>
+                    (r.SerialNumber ?? "").Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                    (r.TestFailure  ?? "").Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Operator     ?? "").Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Process      ?? "").Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Family       ?? "").Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                    (r.TesterName   ?? "").Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Number       ?? "").Contains(s, StringComparison.OrdinalIgnoreCase));
+            }
+            return records;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        RefreshAnalysis();
+        BuildAiSummary();
+        GenerateAiInsights();
+    }
+
+    private void RefreshAnalysis()
+    {
+        _failedRecords = Card.Records
+            .Where(r => r.TestStatus != "P" && r.TestLoopCount == 1)
+            .ToList();
+
+        _top10Failures = _failedRecords
+            .Where(r => !string.IsNullOrEmpty(r.TestFailure))
+            .GroupBy(r => r.TestFailure!)
+            .Select(g => new FailureRank { Failure = g.Key, Count = g.Count() })
+            .OrderByDescending(f => f.Count)
+            .Take(10)
+            .ToList();
+
+        _familyBreakdown = _failedRecords
+            .Where(r => !string.IsNullOrEmpty(r.Family))
+            .GroupBy(r => r.Family!)
+            .Select(g => new FailureRank { Failure = g.Key, Count = g.Count() })
+            .OrderByDescending(f => f.Count)
+            .Take(8).ToList();
+
+        _processBreakdown = _failedRecords
+            .Where(r => !string.IsNullOrEmpty(r.Process))
+            .GroupBy(r => r.Process!)
+            .Select(g => new FailureRank { Failure = g.Key, Count = g.Count() })
+            .OrderByDescending(f => f.Count)
+            .Take(8).ToList();
+
+        // Process yield rates (first-pass only)
+        _processYields = Card.Records
+            .Where(r => r.TestLoopCount == 1 && !string.IsNullOrEmpty(r.Process))
+            .GroupBy(r => r.Process!)
+            .Where(g => g.Count() >= 2)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Count() > 0 ? (g.Count(r => r.TestStatus == "P") / (double)g.Count() * 100) : 100.0);
+
+        _highestFailureName = _top10Failures.FirstOrDefault()?.Failure ?? "N/A";
+        _defectConcentration = _failedRecords.Count > 0 && _top10Failures.Any()
+            ? _top10Failures.First().Count / (double)_failedRecords.Count * 100 : 0;
+
+        var topProc = _processBreakdown.FirstOrDefault();
+        _topFailProcess  = topProc?.Failure  ?? "N/A";
+        _topProcessCount = topProc?.Count    ?? 0;
+
+        var topFam = _familyBreakdown.FirstOrDefault();
+        _mostAffectedFamily = topFam?.Failure ?? "N/A";
+        _topFamilyCount     = topFam?.Count   ?? 0;
+
+        BuildSankeyFlows();
+    }
+
+    private void BuildSankeyFlows()
+    {
+        _sankeyFlows.Clear();
+        if (!_top10Failures.Any()) return;
+
+        var top10Names = _top10Failures.Select(f => f.Failure).ToHashSet();
+        var relevant   = _failedRecords
+            .Where(r => top10Names.Contains(r.TestFailure ?? ""))
+            .ToList();
+        if (!relevant.Any()) return;
+
+        // Family → Process
+        _sankeyFlows.AddRange(
+            relevant
+                .Where(r => !string.IsNullOrEmpty(r.Family) && !string.IsNullOrEmpty(r.Process))
+                .GroupBy(r => (r.Family!, r.Process!))
+                .Select(g => new SankeyFlowData
+                {
+                    Source      = $"FAM::{g.Key.Item1}",
+                    Target      = $"PROC::{g.Key.Item2}",
+                    Value       = g.Count(),
+                    SourceLabel = g.Key.Item1,
+                    TargetLabel = g.Key.Item2
+                }));
+
+        // Process → Failure
+        _sankeyFlows.AddRange(
+            relevant
+                .Where(r => !string.IsNullOrEmpty(r.Process) && !string.IsNullOrEmpty(r.TestFailure))
+                .GroupBy(r => (r.Process!, r.TestFailure!))
+                .Select(g => new SankeyFlowData
+                {
+                    Source      = $"PROC::{g.Key.Item1}",
+                    Target      = $"FAIL::{g.Key.Item2}",
+                    Value       = g.Count(),
+                    SourceLabel = g.Key.Item1,
+                    TargetLabel = g.Key.Item2
+                }));
+    }
+
+    private sealed class SankeyFlowData
+    {
+        public string Source      { get; set; } = "";
+        public string Target      { get; set; } = "";
+        public double Value       { get; set; }
+        public string SourceLabel { get; set; } = "";
+        public string TargetLabel { get; set; } = "";
+    }
+
+    private void BuildAiSummary()
+    {
+        _aiSummaryItems.Clear();
+
+        if (!_failedRecords.Any())
+        {
+            _aiSummaryItems.Add("No defects detected this shift — quality performance is optimal.");
+            return;
+        }
+
+        if (_top10Failures.Any())
+            _aiSummaryItems.Add(
+                $"Main trend: \"{_highestFailureName}\" leads with {_top10Failures[0].Count} occurrences " +
+                $"({_defectConcentration:F1}% of all first-pass failures).");
+
+        if (_topFailProcess != "N/A")
+            _aiSummaryItems.Add(
+                $"Critical process: \"{_topFailProcess}\" contributed {_topProcessCount} failures — " +
+                "prioritise root cause analysis and containment here.");
+
+        if (_top10Failures.Count >= 3)
+        {
+            var top3Sum = _top10Failures.Take(3).Sum(f => f.Count);
+            var top3Pct = _failedRecords.Count > 0 ? top3Sum / (double)_failedRecords.Count * 100 : 0;
+            _aiSummaryItems.Add(
+                $"Pareto insight: top 3 failure modes account for {top3Pct:F0}% of defects. " +
+                "Addressing these will maximise yield improvement return.");
+        }
+
+        var multiLoop = Card.Records.Count(r => r.TestLoopCount > 1);
+        _aiSummaryItems.Add(multiLoop > 0
+            ? $"Re-test pattern: {multiLoop} unit(s) required multiple loops, indicating recurring or intermittent defects."
+            : "No re-test loops observed — first-pass defect capture is working effectively.");
+    }
+
+    private void GenerateAiInsights()
+    {
+        var allFailed   = _failedRecords;
+        var totalTested = Card.Records.Count(r => r.TestLoopCount == 1);
+        var yieldRate   = Card.YieldRate;
+        var mlUnits     = Card.Records.Where(r => r.TestLoopCount > 1).Select(r => r.SerialNumber).Distinct().Count();
+
+        // ── Quality Score ──
+        var score = (int)Math.Round((double)yieldRate);
+        if (mlUnits > totalTested * 0.05) score -= 3;
+        if (_defectConcentration > 60)    score -= 2;
+        _qualityScore      = Math.Max(0, Math.Min(100, score));
+        _qualityScoreGrade = _qualityScore >= 98 ? "A+" : _qualityScore >= 95 ? "A"
+                           : _qualityScore >= 90 ? "B"  : _qualityScore >= 80 ? "C"
+                           : _qualityScore >= 70 ? "D"  : "F";
+        _qualityScoreColor = _qualityScore >= 95 ? "#00ff88" : _qualityScore >= 90 ? "#ffaa00" : "#ff4444";
+        _qualityScoreLabel = _qualityScore >= 98 ? "Exceptional — All systems nominal"
+                           : _qualityScore >= 95 ? "Strong — Minor monitoring recommended"
+                           : _qualityScore >= 90 ? "Adequate — Improvement actions needed"
+                           : _qualityScore >= 80 ? "Below Target — Immediate attention required"
+                           :                       "Critical — Emergency intervention required";
+
+        // ── Priority Actions ──
+        _priorityActions = new();
+
+        if (_top10Failures.Any())
+        {
+            var top = _top10Failures[0];
+            _priorityActions.Add(new PriorityAction
+            {
+                Urgency  = top.Count >= 10 ? "CRITICAL" : top.Count >= 3 ? "WARNING" : "INFO",
+                Category = "ROOT CAUSE",
+                Title    = $"Contain \"{(top.Failure.Length > 30 ? top.Failure[..27] + "…" : top.Failure)}\"",
+                Detail   = $"{top.Count} occurrences ({_defectConcentration:F0}% of failures). Isolate root cause and implement containment before next shift.",
+                Impact   = top.Count >= 5 ? "HIGH" : "MEDIUM",
+                Effort   = "MEDIUM"
+            });
+        }
+
+        if (_topFailProcess != "N/A")
+        {
+            var py = _processYields.TryGetValue(_topFailProcess, out var pv) ? pv : 0.0;
+            _priorityActions.Add(new PriorityAction
+            {
+                Urgency  = py < 85 ? "CRITICAL" : py < 95 ? "WARNING" : "INFO",
+                Category = "PROCESS",
+                Title    = $"Inspect: {(_topFailProcess.Length > 28 ? _topFailProcess[..25] + "…" : _topFailProcess)}",
+                Detail   = $"Process yield at {py:F1}% with {_topProcessCount} failures. Validate parameters, tooling, and incoming material quality.",
+                Impact   = "HIGH",
+                Effort   = "HIGH"
+            });
+        }
+
+        if (Card.TestedCount < Card.PlannedQty * 0.9 && Card.PlannedQty > 0)
+        {
+            var thruPct = (int)Math.Round(Card.TestedCount / (double)Card.PlannedQty * 100);
+            _priorityActions.Add(new PriorityAction
+            {
+                Urgency  = thruPct < 70 ? "CRITICAL" : "WARNING",
+                Category = "CAPACITY",
+                Title    = $"Throughput Gap: {thruPct}% of Plan",
+                Detail   = $"Only {Card.TestedCount} of {Card.PlannedQty} planned units tested. Investigate downtime, bottlenecks, or scheduling constraints.",
+                Impact   = "MEDIUM",
+                Effort   = "MEDIUM"
+            });
+        }
+        else if (_top10Failures.Count >= 3)
+        {
+            var top3    = _top10Failures.Take(3).Sum(f => f.Count);
+            var top3Pct = allFailed.Count > 0 ? (int)Math.Round(top3 / (double)allFailed.Count * 100) : 0;
+            _priorityActions.Add(new PriorityAction
+            {
+                Urgency  = "INFO",
+                Category = "STRATEGY",
+                Title    = "Pareto Focus: Top 3 Failure Modes",
+                Detail   = $"Top 3 failures account for {top3Pct}% of defects. Focusing RCA on these 3 modes maximises yield recovery with minimal resource investment.",
+                Impact   = "HIGH",
+                Effort   = "LOW"
+            });
+        }
+
+        while (_priorityActions.Count < 3)
+            _priorityActions.Add(new PriorityAction
+            {
+                Urgency  = "INFO",
+                Category = "MONITOR",
+                Title    = "Maintain Quality Standards",
+                Detail   = "No critical actions pending. Continue SPC monitoring, maintain control plans, and document current process parameters as performance baseline.",
+                Impact   = "LOW",
+                Effort   = "LOW"
+            });
+
+        // ── Pareto Rows ──
+        var cumPct = 0.0;
+        _paretoRows = _top10Failures.Select(f =>
+        {
+            var share = allFailed.Count > 0 ? f.Count / (double)allFailed.Count * 100 : 0;
+            cumPct += share;
+            return new ParetoRow { Failure = f.Failure, Count = f.Count, SharePct = share, CumPct = Math.Min(cumPct, 100) };
+        }).ToList();
+
+        // ── Hourly Defects ──
+        _hourlyDefects = allFailed
+            .Where(r => r.StartDateTime.HasValue)
+            .GroupBy(r => r.StartDateTime!.Value.Hour)
+            .Select(g => new HourlyBucket { Hour = g.Key, Count = g.Count() })
+            .OrderBy(h => h.Hour)
+            .ToList();
+
+        // ── Operator Intelligence ──
+        _operatorInsights = Card.Records
+            .Where(r => r.TestLoopCount == 1 && !string.IsNullOrEmpty(r.Operator))
+            .GroupBy(r => r.Operator!)
+            .Select(g => new OperatorInsight
+            {
+                Operator = g.Key,
+                Failures = g.Count(r => r.TestStatus != "P"),
+                Total    = g.Count(),
+                Yield    = g.Count() > 0 ? g.Count(r => r.TestStatus == "P") / (double)g.Count() * 100 : 100
+            })
+            .Where(o => o.Total >= 2)
+            .OrderBy(o => o.Yield)
+            .Take(7)
+            .ToList();
+
+        // ── Intelligence Feed ──
+        _allInsights = new();
+
+        foreach (var f in _top10Failures.Take(3))
+        {
+            var pct = allFailed.Count > 0 ? f.Count / (double)allFailed.Count * 100 : 0;
+            _allInsights.Add(new InsightItem
+            {
+                Severity = pct >= 30 ? "high" : pct >= 10 ? "medium" : "low",
+                Category = "ROOT CAUSE",
+                Text     = $"\"{f.Failure}\" — {f.Count} hits ({pct:F0}% of failures). {(pct >= 30 ? "Dominant failure — escalate immediately." : pct >= 10 ? "Significant contributor — schedule RCA." : "Minor contributor — monitor trend.")}"
+            });
+        }
+
+        foreach (var p in _processBreakdown.Take(3))
+        {
+            var py = _processYields.TryGetValue(p.Failure, out var pv2) ? pv2 : 100.0;
+            _allInsights.Add(new InsightItem
+            {
+                Severity = py < 85 ? "high" : py < 95 ? "medium" : "low",
+                Category = "PROCESS",
+                Text     = $"Process \"{p.Failure}\": {py:F1}% yield with {p.Count} failures. {(py < 85 ? "Critical — halt and inspect." : py < 95 ? "Below threshold — investigate." : "Within bounds — monitoring.")}"
+            });
+        }
+
+        if (mlUnits > 0)
+            _allInsights.Add(new InsightItem
+            {
+                Severity = mlUnits > 10 ? "high" : "medium",
+                Category = "PATTERN",
+                Text     = $"{mlUnits} unit(s) required multiple test loops — indicative of intermittent or recurring defects. Verify fixture contact and test environment stability."
+            });
+
+        foreach (var op in _operatorInsights.Where(o => o.Yield < 90).Take(2))
+            _allInsights.Add(new InsightItem
+            {
+                Severity = op.Yield < 80 ? "high" : "medium",
+                Category = "PATTERN",
+                Text     = $"Operator \"{op.Operator}\": {op.Yield:F0}% yield ({op.Failures} failures / {op.Total} units tested). Verify training compliance and ergonomic factors."
+            });
+
+        if (yieldRate < 90)
+            _allInsights.Add(new InsightItem { Severity = "high", Category = "RISK",
+                Text = $"Shift yield of {yieldRate}% is critically below the 90% floor. Same-shift corrective action and escalation to quality lead required." });
+        else if (yieldRate < 95)
+            _allInsights.Add(new InsightItem { Severity = "medium", Category = "RISK",
+                Text = $"Yield at {yieldRate}% is below the 95% target. Trend requires active monitoring before the next shift begins." });
+
+        if (totalTested > 0 && Card.PlannedQty > 0)
+        {
+            var thru = totalTested / (double)Card.PlannedQty * 100;
+            if (thru < 90)
+                _allInsights.Add(new InsightItem { Severity = thru < 70 ? "high" : "medium", Category = "CAPACITY",
+                    Text = $"Throughput: {thru:F0}% of plan ({totalTested}/{Card.PlannedQty}). Investigate downtime events, material shortages, or equipment availability." });
+        }
+
+        if (_hourlyDefects.Any())
+        {
+            var peak = _hourlyDefects.OrderByDescending(h => h.Count).First();
+            _allInsights.Add(new InsightItem { Severity = "medium", Category = "PATTERN",
+                Text = $"Peak failure hour: {peak.Hour}:00 with {peak.Count} failures. Investigate operator fatigue, shift handover quality, or material batch changes at that time." });
+        }
+
+        if (!allFailed.Any())
+            _allInsights.Add(new InsightItem { Severity = "low", Category = "RECOMMEND",
+                Text = "Zero failures detected this shift — process is in excellent control. Document current parameters and settings as a performance baseline." });
+
+        if (_allInsights.All(i => i.Severity != "high"))
+            _allInsights.Add(new InsightItem { Severity = "low", Category = "RECOMMEND",
+                Text = "No high-severity issues identified. Consider SPC control chart deployment to proactively monitor key test parameters and detect drift early." });
+
+        _allInsights = _allInsights
+            .OrderBy(i => i.Severity switch { "high" => 0, "medium" => 1, _ => 2 })
+            .ToList();
+    }
+
+    private HourlyBucket? HourlyPeak => _hourlyDefects.Any()
+        ? _hourlyDefects.OrderByDescending(h => h.Count).First() : null;
+
+    private string BuildHourlySvg()
+    {
+        if (!_hourlyDefects.Any()) return "";
+        var hMax    = _hourlyDefects.Max(h => h.Count);
+        var hMinHr  = _hourlyDefects.Min(h => h.Hour);
+        var hMaxHr  = _hourlyDefects.Max(h => h.Hour);
+        var peak    = HourlyPeak;
+        var range   = Enumerable.Range(hMinHr, hMaxHr - hMinHr + 1).ToList();
+        var lookup  = _hourlyDefects.ToDictionary(h => h.Hour, h => h.Count);
+        var spacing = range.Count > 1 ? 258.0 / range.Count : 20.0;
+        var barW    = Math.Max(3.0, spacing - 2.0);
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        var sb      = new System.Text.StringBuilder();
+        sb.Append("<svg width=\"100%\" height=\"76\" viewBox=\"0 0 260 76\" style=\"overflow:visible; display:block;\">");
+        for (int i = 0; i < range.Count; i++)
+        {
+            var hour = range[i];
+            var cnt  = lookup.TryGetValue(hour, out var c) ? c : 0;
+            var bH   = hMax > 0 ? (int)(cnt / (double)hMax * 52) : 0;
+            var bX   = i * spacing + 1;
+            var bY   = 52 - bH;
+            var isPk = peak != null && hour == peak.Hour;
+            var col  = isPk ? "#ff4444" : cnt > 0 ? "#00d4ff99" : "#0d2137";
+            sb.Append($"<rect x=\"{bX.ToString("F1", culture)}\" y=\"{bY}\" " +
+                      $"width=\"{barW.ToString("F1", culture)}\" height=\"{Math.Max(bH, cnt > 0 ? 2 : 0)}\" " +
+                      $"rx=\"1.5\" fill=\"{col}\"/>");
+            if (isPk || hour == hMinHr || hour == hMaxHr)
+                sb.Append($"<text x=\"{(bX + barW / 2.0).ToString("F1", culture)}\" y=\"70\" " +
+                          $"text-anchor=\"middle\" fill=\"#8899aa\" font-size=\"6\" font-family=\"sans-serif\">" +
+                          $"{hour}:00</text>");
+        }
+        sb.Append("</svg>");
+        return sb.ToString();
+    }
+
+    private IEnumerable<(string Icon, string Label, string Value, string Color)>
+        GetProductionStats(List<BkTestTarRawDatumDto> recs)
+    {
+        var total      = recs.Count;
+        var pass       = recs.Count(r => r.TestStatus == "P");
+        var fail       = total - pass;
+        var yield      = total > 0 ? pass / (double)total * 100 : 0.0;
+        var yieldColor = yield >= 98 ? "#00ff88" : yield >= 90 ? "#ffaa00" : "#ff4444";
+        var rework     = recs.Where(r => r.TestLoopCount > 1).Select(r => r.SerialNumber).Distinct().Count();
+        var ops        = recs.Where(r => !string.IsNullOrEmpty(r.Operator)).Select(r => r.Operator!).Distinct().Count();
+        var testers    = recs.Where(r => !string.IsNullOrEmpty(r.TesterName)).Select(r => r.TesterName!).Distinct().Count();
+        var avgCycle   = recs.Where(r => r.StartDateTime.HasValue && r.EndDateTime.HasValue)
+                             .Select(r => (r.EndDateTime!.Value - r.StartDateTime!.Value).TotalSeconds)
+                             .DefaultIfEmpty(0).Average();
+        var cycleText  = avgCycle < 1 ? "\u2014" : avgCycle < 60 ? $"{avgCycle:F0}s" : $"{avgCycle / 60:F1}m";
+        var cycleColor = avgCycle <= 0 ? "#334455" : avgCycle < 60 ? "#00ff88" : avgCycle < 300 ? "#ffaa00" : "#ff4444";
+        return
+        [
+            (Icons.Material.Filled.FilterList,     "SHOWING",   $"{total} / {Card.Records.Count}", "#00d4ff"),
+            (Icons.Material.Filled.CheckCircle,    "PASS",      pass.ToString("N0"),               "#00ff88"),
+            (Icons.Material.Filled.Cancel,         "FAIL",      fail.ToString("N0"),               fail > 0 ? "#ff4444" : "#334455"),
+            (Icons.Material.Filled.VerifiedUser,   "YIELD",     $"{yield:F1}%",                    yieldColor),
+            (Icons.Material.Filled.Replay,         "REWORK",    rework.ToString("N0"),             rework > 0 ? "#ffaa00" : "#334455"),
+            (Icons.Material.Filled.Person,         "OPERATORS", ops.ToString(),                    "#aa55ff"),
+            (Icons.Material.Filled.DeveloperBoard, "TESTERS",   testers.ToString(),                "#00d4ff"),
+            (Icons.Material.Filled.Timer,          "AVG CYCLE", cycleText,                         cycleColor),
+        ];
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task ExportToCsv()
+    {
+        var records = FilteredDataRecords.ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Serial Number,Customer,Division,Family,Process,Status,Failure,Operator,Tester,Number,Start Time,End Time,Loop Count,Shift");
+        foreach (var r in records)
+            sb.AppendLine($"\"{E(r.SerialNumber)}\",\"{E(r.Customer)}\",\"{E(r.Division)}\",\"{E(r.Family)}\",\"{E(r.Process)}\",\"{(r.TestStatus == "P" ? "PASS" : "FAIL")}\",\"{E(r.TestFailure)}\",\"{E(r.Operator)}\",\"{E(r.TesterName)}\",\"{E(r.Number)}\",\"{r.StartDateTime:MM/dd/yyyy HH:mm}\",\"{r.EndDateTime:MM/dd/yyyy HH:mm}\",\"{r.TestLoopCount}\",\"{E(r.Shift)}\"");
+        var b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+        await JS.InvokeVoidAsync("lccDownloadFile", $"LCC_{Card.Shift}Shift_{Card.ShiftDate.Replace("/", "-")}.csv", b64, "text/csv");
+    }
+
+    private async Task ExportToExcel()
+    {
+        var records = FilteredDataRecords.ToList();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Serial Number\tCustomer\tDivision\tFamily\tProcess\tStatus\tFailure\tOperator\tTester\tNumber\tStart Time\tEnd Time\tLoop Count\tShift");
+        foreach (var r in records)
+            sb.AppendLine($"{r.SerialNumber}\t{r.Customer}\t{r.Division}\t{r.Family}\t{r.Process}\t{(r.TestStatus == "P" ? "PASS" : "FAIL")}\t{r.TestFailure}\t{r.Operator}\t{r.TesterName}\t{r.Number}\t{r.StartDateTime:MM/dd/yyyy HH:mm}\t{r.EndDateTime:MM/dd/yyyy HH:mm}\t{r.TestLoopCount}\t{r.Shift}");
+        var b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+        await JS.InvokeVoidAsync("lccDownloadFile", $"LCC_{Card.Shift}Shift_{Card.ShiftDate.Replace("/", "-")}.xls", b64, "application/vnd.ms-excel");
+    }
+
+    private static string E(string? v) => (v ?? "").Replace("\"", "\"\"");
+
+    private sealed class FailureRank
+    {
+        public string Failure { get; set; } = "";
+        public int    Count   { get; set; }
+    }
+
+    private sealed class InsightItem
+    {
+        public string Severity { get; set; } = "low";
+        public string Category { get; set; } = "";
+        public string Text     { get; set; } = "";
+    }
+
+    private sealed class PriorityAction
+    {
+        public string Urgency  { get; set; } = "INFO";
+        public string Category { get; set; } = "";
+        public string Title    { get; set; } = "";
+        public string Detail   { get; set; } = "";
+        public string Impact   { get; set; } = "LOW";
+        public string Effort   { get; set; } = "LOW";
+    }
+
+    private sealed class ParetoRow
+    {
+        public string Failure  { get; set; } = "";
+        public int    Count    { get; set; }
+        public double SharePct { get; set; }
+        public double CumPct   { get; set; }
+    }
+
+    private sealed class HourlyBucket
+    {
+        public int Hour  { get; set; }
+        public int Count { get; set; }
+    }
+
+    private sealed class OperatorInsight
+    {
+        public string Operator { get; set; } = "";
+        public int    Failures { get; set; }
+        public int    Total    { get; set; }
+        public double Yield    { get; set; }
+    }
+}

@@ -1,0 +1,304 @@
+@using MudBlazor
+
+@{
+    var _panels     = _slides.SelectMany(s =>
+        s.Pages > 0
+            ? Enumerable.Range(1, s.Pages).Select(p => (Slide: s, Page: p))
+            : new[] { (Slide: s, Page: 0) }
+    ).ToList();
+    var _panelCount = _panels.Count;
+    var _ic         = System.Globalization.CultureInfo.InvariantCulture;
+    var _trackW     = _panelCount * 100;
+    var _offsetPct  = _activePanelIndex * (100.0 / _panelCount);
+    var _curSlide   = _panels[_activePanelIndex].Slide;
+    var _curPage    = _panels[_activePanelIndex].Page;
+    var _isPaged    = _curSlide.Pages > 0;
+    var _slideLabel = _isPaged
+                        ? $"{_curSlide.Title} — PAGE {_curPage} OF {_curSlide.Pages}"
+                        : _curSlide.Title;
+}
+
+<style>
+    .bbq-pdf-panel {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background: #060d1f;
+    }
+    .bbq-pdf-panel embed {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+    }
+    .bbq-nav-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 52px; height: 52px;
+        border-radius: 50%;
+        z-index: 20;
+        background: rgba(10,22,40,0.85);
+        border: 1px solid #1a3a5c;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+    }
+    .bbq-nav-arrow:hover {
+        background: rgba(0,180,216,0.18);
+        border-color: #00b4d855;
+        box-shadow: 0 0 20px rgba(0,180,216,0.25);
+    }
+    .bbq-dot {
+        height: 7px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: width 0.3s, background 0.3s, box-shadow 0.3s;
+    }
+</style>
+
+<div style="background:#060d1f; width:100vw; height:100vh;
+            display:flex; flex-direction:column; overflow:hidden; position:fixed; inset:0;">
+
+    @* ══════════════════════════════════════════════
+       HEADER
+       ══════════════════════════════════════════════ *@
+    <div style="flex-shrink:0; background:linear-gradient(90deg,#0b1c36,#0a1628);
+                border-bottom:1px solid #1a3a5c;
+                padding:10px 20px;
+                display:grid; grid-template-columns:1fr auto 1fr;
+                align-items:center; gap:16px;">
+
+        @* Left — logo + label *@
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:36px; height:36px; border-radius:10px; flex-shrink:0;
+                        background:linear-gradient(135deg,#00b4d818,#00b4d808);
+                        border:1px solid #00b4d833;
+                        display:flex; align-items:center; justify-content:center;">
+                <MudIcon Icon="@Icons.Material.Filled.Dashboard"
+                         Style="color:#00b4d8; font-size:18px;" />
+            </div>
+            <div>
+                <div style="font-family:'Orbitron',sans-serif; font-size:12px;
+                            font-weight:900; color:#e8f4f8; letter-spacing:3px; line-height:1;">
+                    SHIFT BRIEFING
+                </div>
+                <div style="color:#7ab3cc; font-size:9px; letter-spacing:1px; margin-top:3px;">
+                    @_slideLabel
+                </div>
+            </div>
+        </div>
+
+        @* Center — slide tabs *@
+        <div style="display:flex; align-items:center; gap:6px;">
+            @foreach (var slide in _slides)
+            {
+                var firstPanel = _panels.FindIndex(p => p.Slide == slide);
+                var active     = _curSlide == slide;
+                <div @onclick="() => GoToPanel(firstPanel)"
+                     style="display:flex; align-items:center; gap:5px;
+                            padding:5px 14px; border-radius:20px; cursor:pointer;
+                            background:@(active ? "#00b4d820" : "transparent");
+                            border:1px solid @(active ? "#00b4d855" : "#1a3a5c");
+                            transition:all 0.15s;">
+                    <MudIcon Icon="@(slide.Pages > 0 ? Icons.Material.Filled.Slideshow : Icons.Material.Filled.Description)"
+                             Style="@($"color:{(active ? "#00b4d8" : "#3d6b8a")}; font-size:13px;")" />
+                    <span style="color:@(active ? "#00b4d8" : "#7ab3cc"); font-size:10px;
+                                 font-weight:@(active ? "700" : "400"); letter-spacing:1px; white-space:nowrap;">
+                        @slide.Title
+                    </span>
+                    @if (slide.Pages > 0)
+                    {
+                        <span style="color:@(active ? "#00b4d888" : "#3d6b8a88"); font-size:9px;">
+                            @slide.Pages<span style="font-size:7px; opacity:0.7;">pg</span>
+                        </span>
+                    }
+                </div>
+            }
+        </div>
+
+        @* Right — badge + close *@
+        <div style="display:flex; align-items:center; gap:8px; justify-content:flex-end;">
+            <div style="display:flex; align-items:center; gap:5px;
+                        padding:4px 12px; border-radius:20px;
+                        background:#22c55e12; border:1px solid #22c55e30;">
+                <div style="width:5px; height:5px; border-radius:50%; background:#22c55e;
+                            box-shadow:0 0 5px #22c55e;"></div>
+                <span style="color:#22c55e; font-size:9px; font-weight:700; letter-spacing:1px;">
+                    BRIEFING VIEWED
+                </span>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                           Size="MudSize.Small"
+                           Style="color:#7ab3cc; background:#1a3a5c55; border-radius:8px;"
+                           OnClick="Close" />
+        </div>
+    </div>
+
+    @* ══════════════════════════════════════════════
+       SLIDE VIEWER — no scrollbars, no overflow
+       ══════════════════════════════════════════════ *@
+    <div style="flex:1; position:relative; overflow:hidden; min-height:0;">
+
+        @* ── Left arrow ── *@
+        @if (_activePanelIndex > 0)
+        {
+            <div class="bbq-nav-arrow" @onclick="Prev" style="left:16px;"
+                 @onmouseenter="@(() => _prevHover = true)"
+                 @onmouseleave="@(() => _prevHover = false)">
+                <MudIcon Icon="@Icons.Material.Filled.ChevronLeft"
+                         Style="@($"color:{(_prevHover ? "#00b4d8" : "#7ab3cc")}; font-size:30px; transition:color 0.15s;")" />
+            </div>
+        }
+
+        @* ── Right arrow ── *@
+        @if (_activePanelIndex < _panelCount - 1)
+        {
+            <div class="bbq-nav-arrow" @onclick="Next" style="right:16px;"
+                 @onmouseenter="@(() => _nextHover = true)"
+                 @onmouseleave="@(() => _nextHover = false)">
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight"
+                         Style="@($"color:{(_nextHover ? "#00b4d8" : "#7ab3cc")}; font-size:30px; transition:color 0.15s;")" />
+            </div>
+        }
+
+        @* ── Slide track ── *@
+        <div style="position:absolute; inset:0; overflow:hidden;">
+            <div style="display:flex;
+                        width:@(_trackW.ToString(_ic))%;
+                        height:100%;
+                        transform:translateX(-@(_offsetPct.ToString("F4", _ic))%);
+                        transition:transform 0.42s cubic-bezier(0.4,0,0.2,1);
+                        will-change:transform;">
+                @foreach (var (slide, page) in _panels)
+                {
+                    var src = page > 0
+                        ? $"/briefings/{slide.File}#page={page}&toolbar=0&navpanes=0&scrollbar=0&view=Fit"
+                        : $"/briefings/{slide.File}#toolbar=0&navpanes=0&scrollbar=0&view=Fit";
+                    <div style="width:@((100.0 / _panelCount).ToString("F4", _ic))%;
+                                flex-shrink:0; height:100%; position:relative; overflow:hidden;">
+                        <div class="bbq-pdf-panel">
+                            <embed src="@src" type="application/pdf" />
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* ── Page counter badge (paged slides only) ── *@
+        @if (_isPaged)
+        {
+            <div style="position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+                        background:rgba(10,22,40,0.82); border:1px solid #1a3a5c;
+                        border-radius:20px; padding:4px 16px;
+                        display:flex; align-items:center; gap:8px;
+                        backdrop-filter:blur(6px); pointer-events:none; z-index:5;">
+                <span style="color:#00b4d8; font-family:'Orbitron',sans-serif;
+                             font-size:11px; font-weight:700; letter-spacing:1px;">
+                    @_curPage
+                </span>
+                <span style="color:#3d6b8a; font-size:10px;">/</span>
+                <span style="color:#7ab3cc; font-size:10px; letter-spacing:1px;">
+                    @_curSlide.Pages
+                </span>
+            </div>
+        }
+    </div>
+
+    @* ══════════════════════════════════════════════
+       FOOTER
+       ══════════════════════════════════════════════ *@
+    <div style="flex-shrink:0; background:#0a1628; border-top:1px solid #1a3a5c;
+                padding:8px 24px; display:flex; align-items:center;
+                justify-content:space-between; gap:16px;">
+
+        @* Dot indicators *@
+        <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap; flex:1; min-width:0;">
+            @for (int i = 0; i < _panelCount; i++)
+            {
+                var idx        = i;
+                var isActive   = _activePanelIndex == idx;
+                var isNewSlide = idx == 0 || _panels[idx].Slide != _panels[idx - 1].Slide;
+                @if (isNewSlide && idx > 0)
+                {
+                    <div style="width:1px; height:12px; background:#1a3a5c; margin:0 3px; flex-shrink:0;"></div>
+                }
+                <div class="bbq-dot"
+                     @onclick="() => GoToPanel(idx)"
+                     style="width:@(isActive ? "20px" : "6px");
+                            background:@(isActive ? "#00b4d8" : "#1a3a5c");
+                            box-shadow:@(isActive ? "0 0 8px #00b4d8" : "none");">
+                </div>
+            }
+        </div>
+
+        <div style="color:#2d5070; font-size:8px; letter-spacing:2px; white-space:nowrap; flex-shrink:0;">
+            LINE CONTROL CENTER — BACKEND &nbsp;·&nbsp; SHIFT BRIEFING
+        </div>
+
+        @* Prev / Next *@
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+            <MudButton Variant="MudVariant.Outlined"
+                       Size="MudSize.Small"
+                       Disabled="@(_activePanelIndex == 0)"
+                       Style="border-color:#1a3a5c; color:#7ab3cc; border-radius:8px;
+                              font-size:10px; min-width:80px;"
+                       StartIcon="@Icons.Material.Filled.ChevronLeft"
+                       OnClick="Prev">
+                PREV
+            </MudButton>
+            <MudButton Variant="MudVariant.Filled"
+                       Size="MudSize.Small"
+                       Disabled="@(_activePanelIndex == _panelCount - 1)"
+                       Style="background:linear-gradient(135deg,#0b5f8a,#083d66);
+                              color:#e8f4f8; border-radius:8px; font-size:10px;
+                              border:1px solid #2ea8d644; min-width:80px;"
+                       EndIcon="@Icons.Material.Filled.ChevronRight"
+                       OnClick="Next">
+                NEXT
+            </MudButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    // Pages = 0  → single document panel (scrollable)
+    // Pages = N  → N fixed panels, one per page — no scroll
+    private record SlideItem(string Title, string File, int Pages = 0);
+
+    private readonly List<SlideItem> _slides =
+    [
+        new("PENANG SAFETY INCIDENTS", "PENANG SAFETY INCIDENTS.pdf"),
+        new("P1 INCIDENT MAPPING",     "P1_Incident_Mapping.pdf"),
+        new("P2 INCIDENT MAPPING",     "P2_Incident_Mapping.pdf"),
+        new("BK INCIDENT MAPPING",     "BK_Incident_Mapping.pdf"),
+        new("BBQ",                     "BBQ.pdf"),
+    ];
+
+    private int  _activePanelIndex = 0;
+    private bool _prevHover        = false;
+    private bool _nextHover        = false;
+
+    private void GoToPanel(int idx)
+    {
+        var total = _slides.SelectMany(s =>
+            s.Pages > 0
+                ? Enumerable.Range(1, s.Pages).Select(p => (s, p))
+                : new[] { (s, 0) }
+        ).Count();
+        if (idx >= 0 && idx < total)
+            _activePanelIndex = idx;
+    }
+
+    private void Prev() => GoToPanel(_activePanelIndex - 1);
+    private void Next() => GoToPanel(_activePanelIndex + 1);
+
+    private void Close() => MudDialog.Close();
+}

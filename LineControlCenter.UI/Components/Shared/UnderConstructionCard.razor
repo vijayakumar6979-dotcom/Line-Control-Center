@@ -1,0 +1,35 @@
+@using MudBlazor
+
+<div style="background:#0d1f3c; border:none; border-radius:20px;
+            box-shadow:inset 0 3px 0 0 #f59e0b; overflow:hidden; height:100%;">
+    <div style="height:3px; background:linear-gradient(90deg,#f59e0b,#ff6b3588,transparent);"></div>
+    <div style="display:flex; align-items:center; gap:10px; padding:14px 18px;">
+        <div style="width:34px; height:34px; border-radius:10px;
+                    background:#f59e0b14; border:1px solid #f59e0b33;
+                    display:flex; align-items:center; justify-content:center;">
+            <MudIcon Icon="@Icons.Material.Filled.Engineering" Style="color:#f59e0b; font-size:18px;" />
+        </div>
+        <div>
+            <div style="color:#e8f4f8; font-family:'Orbitron',sans-serif;
+                        font-size:11px; font-weight:700; letter-spacing:2px;">
+                @Title
+            </div>
+            <div style="color:#7ab3cc; font-size:8px; letter-spacing:1px; margin-top:2px;">
+                @Subtitle
+            </div>
+        </div>
+    </div>
+    <div style="padding:18px; display:flex; align-items:center; justify-content:center; min-height:180px;">
+        <div style="text-align:center; border:1px dashed #f59e0b55; border-radius:12px; padding:18px 16px; width:100%; background:#0a1628;">
+            <MudIcon Icon="@Icons.Material.Filled.Construction" Style="color:#f59e0b; font-size:36px;" />
+            <div style="color:#f59e0b; font-size:10px; letter-spacing:2px; font-weight:700; margin-top:8px;">
+                FEATURE IN DEVELOPMENT
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title    { get; set; } = "UNDER CONSTRUCTION";
+    [Parameter] public string Subtitle { get; set; } = "UNDER CONSTRUCTION / DEVELOPMENT";
+}

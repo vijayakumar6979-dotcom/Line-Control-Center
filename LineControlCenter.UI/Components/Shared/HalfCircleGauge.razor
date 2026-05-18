@@ -1,0 +1,113 @@
+@* padding-bottom=(108/200)*100%=54% locks the container to exactly 200:108 ratio
+   regardless of flex/grid parent — the SVG then fills it with position:absolute,
+   guaranteeing uniform scaling so the arc stays a true half-circle. *@
+<div style="position:relative; width:100%; padding-bottom:54%;">
+    <svg viewBox="0 0 200 108"
+         xmlns="http://www.w3.org/2000/svg"
+         style="position:absolute; top:0; left:0; width:100%; height:100%;">
+        <defs>
+            @* Gradient spans the full arc width so colour position reflects true progress *@
+            <linearGradient id="@_gradientId" x1="10" y1="0" x2="190" y2="0" gradientUnits="userSpaceOnUse">
+                @if (ReverseColors)
+                {
+                    <stop offset="0%"   stop-color="#22c55e" />
+                    <stop offset="60%"  stop-color="#f59e0b" />
+                    <stop offset="100%" stop-color="#ff3b3b" />
+                }
+                else
+                {
+                    <stop offset="0%"   stop-color="#ff3b3b" />
+                    <stop offset="40%"  stop-color="#f59e0b" />
+                    <stop offset="100%" stop-color="#22c55e" />
+                }
+            </linearGradient>
+            <filter id="@_glowId" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.2" result="blur" />
+                <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>
+
+        @* Track — full half-circle in dark colour (shows the Max range) *@
+        <path d="M 10,100 A 90,90 0 0 1 190,100"
+              fill="none" stroke="#112244" stroke-width="14" stroke-linecap="round" />
+
+        @* Full gradient arc — always spans 0 to Max (PlannedQty / 100).
+           The needle is the only indicator of current value (PassCount). *@
+        <path d="M 10,100 A 90,90 0 0 1 190,100"
+              fill="none" stroke="url(#@_gradientId)" stroke-width="14" stroke-linecap="round"
+              filter="url(#@_glowId)" />
+
+        @* Tick marks — outer r=97, major inner r=88, minor inner r=92 *@
+        @for (int i = 0; i <= 10; i++)
+        {
+            var pct = i / 10.0;
+            var a   = System.Math.PI * (1 - pct);
+            var o   = 97.0;
+            var n   = i % 5 == 0 ? 88.0 : 92.0;
+            <line x1="@Fmt(100 + n * System.Math.Cos(a))" y1="@Fmt(100 - n * System.Math.Sin(a))"
+                  x2="@Fmt(100 + o * System.Math.Cos(a))" y2="@Fmt(100 - o * System.Math.Sin(a))"
+                  stroke="#3d6b8a" stroke-width="@(i % 5 == 0 ? "1.5" : "0.8")" />
+        }
+
+        @* Needle — tip at r=82, same angle as arc end = perfect alignment *@
+        <line x1="100" y1="100"
+              x2="@Fmt(_needleX)" y2="@Fmt(_needleY)"
+              stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" />
+
+        @* Needle pivot *@
+        <circle cx="100" cy="100" r="5" fill="#0d1f3c" stroke="#00b4d8" stroke-width="1.5" />
+
+        @* Center value *@
+        <text x="100" y="84" text-anchor="middle"
+              fill="#ffffff" font-size="@_valueFontSize" font-weight="900"
+              font-family="'Orbitron', monospace">
+            @_displayText
+        </text>
+
+        @* Min / Max labels — aligned to arc endpoints *@
+        <text x="10"  y="108" text-anchor="middle" fill="#7ab3cc" font-size="8" font-family="monospace">0</text>
+        <text x="190" y="108" text-anchor="end"    fill="#7ab3cc" font-size="8" font-family="monospace">@_maxLabel</text>
+    </svg>
+</div>
+
+@code {
+    [Parameter] public double  Value        { get; set; }
+    [Parameter] public double  Max          { get; set; } = 100;
+    [Parameter] public string  Id           { get; set; } = "gauge";
+    [Parameter] public string? DisplayValue { get; set; }
+    [Parameter] public bool    ReverseColors { get; set; } = false;
+
+    private string _gradientId => $"grad-{Id}";
+    private string _glowId     => $"glow-{Id}";
+    private double _maxSafe    => Max > 0 ? Max : 1;
+    private double _clamped    => Math.Clamp(Value, 0, _maxSafe);
+    private double _percent    => Math.Clamp(_clamped / _maxSafe * 100, 0, 100);
+
+    // Needle and arc end share the same angle — guarantees tip always touches arc end
+    private double _angle   => Math.PI * (1 - Math.Clamp(_percent, 0.5, 99.5) / 100.0);
+    private double _needleX => 100 + 82 * Math.Cos(_angle);
+    private double _needleY => 100 - 82 * Math.Sin(_angle);
+
+    private string _displayText => DisplayValue
+        ?? (_percent.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "%");
+
+    private string _valueFontSize => _displayText.Length switch
+    {
+        <= 6 => "22",
+        7    => "19",
+        8    => "16",
+        _    => "14"
+    };
+
+    private string _maxLabel => Max != 100
+        ? ((int)_maxSafe).ToString()
+        : "100";
+
+    private static string Fmt(double v) =>
+        v.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+

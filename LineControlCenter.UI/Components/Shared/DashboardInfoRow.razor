@@ -1,0 +1,28 @@
+@using LineControlCenter.UI.Models
+@using MudBlazor
+
+<div class="lcc-info-row">
+    @foreach (var c in _cards)
+    {
+        <div class="lcc-info-card">
+            <div class="lcc-info-card-icon">
+                <MudIcon Icon="@c.Icon" Style="color:#00b4d8; font-size:clamp(16px,1.6vw,22px);" />
+            </div>
+            <div class="lcc-info-card-body">
+                <div class="lcc-info-card-label">@c.Label</div>
+                <div class="lcc-info-card-value" title="@c.Value">@c.Value</div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DashboardFilter Filter { get; set; } = default!;
+
+    private (string Icon, string Label, string Value)[] _cards => [
+        (Icons.Material.Filled.Business,    "CUSTOMER", Filter.Customer ?? "ALL"),
+        (Icons.Material.Filled.AccountTree, "DIVISION", Filter.Division ?? "ALL"),
+        (Icons.Material.Filled.Category,    "FAMILY",   Filter.Family   ?? "ALL"),
+        (Icons.Material.Filled.Warehouse,   "BAY",      Filter.Process  ?? "Backend"),
+    ];
+}

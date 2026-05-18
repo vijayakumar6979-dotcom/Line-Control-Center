@@ -1,0 +1,409 @@
+@using LineControlCenter.Application.DTOs
+@using MudBlazor
+@inject IJSRuntime JS
+@inject LineControlCenter.Application.Interfaces.IEmailReportService EmailReportService
+@inject ISnackbar Snackbar
+
+<MudDialog Style="background:#0a1628; border-radius:20px; overflow:hidden;">
+    <DialogContent>
+        <div style="display:flex; flex-direction:column; height:82vh; max-height:82vh;">
+
+            @* ── Header ── *@
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:20px 24px 14px; flex-shrink:0;
+                        background:linear-gradient(135deg,#0d1f3c 0%,#0a1628 100%);
+                        border-bottom:1px solid #1a3a5c;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:42px; height:42px; border-radius:12px;
+                                background:linear-gradient(135deg,#f59e0b20,#f59e0b08);
+                                border:1px solid #f59e0b44;
+                                display:flex; align-items:center; justify-content:center;">
+                        <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety"
+                                 Style="color:#f59e0b; font-size:22px;" />
+                    </div>
+                    <div>
+                        <div style="color:#f59e0b; font-family:'Orbitron',sans-serif;
+                                    font-size:14px; font-weight:800; letter-spacing:2px;">
+                            SAFETY INCIDENTS · DETAILS
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:2px; flex-wrap:wrap;">
+                            <span style="color:#7ab3cc; font-size:10px;">@FiscalYearLabel</span>
+                            <span style="color:#3d6b8a;">·</span>
+                            <span style="color:#f59e0b; font-size:10px; font-weight:700;">
+                                @Incidents.Count TOTAL
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <MudTooltip Text="Send Report by Email" Placement="Placement.Bottom">
+                        <MudIconButton Icon="@Icons.Material.Filled.Email"
+                                       Size="MudSize.Small"
+                                       Style="@($"color:#f59e0b; background:{(_showEmailPanel ? "#f59e0b22" : "#0d1f3c")}; border:1px solid {(_showEmailPanel ? "#f59e0b66" : "#1a3a5c")}; border-radius:10px; width:36px; height:36px;")"
+                                       OnClick="() => _showEmailPanel = !_showEmailPanel" />
+                    </MudTooltip>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Size="MudSize.Small"
+                                   Style="color:#e8f4f8; background:#0d1f3c; border:1px solid #1a3a5c;
+                                          border-radius:10px; width:36px; height:36px;"
+                                   OnClick="Cancel" />
+                </div>
+            </div>
+
+            @* ── Email compose panel ── *@
+            @if (_showEmailPanel)
+            {
+                <div style="padding:14px 24px; background:#070f1e; border-bottom:1px solid #f59e0b22; flex-shrink:0;">
+                    <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:200px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">TO (comma or semicolon separated)</div>
+                            <MudTextField @bind-Value="_emailTo" Placeholder="user@example.com"
+                                          Variant="MudBlazor.Variant.Outlined" Margin="Margin.Dense"
+                                          Style="background:#0a1628;" Disabled="@_sendingEmail" />
+                        </div>
+                        <div style="flex:2; min-width:200px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">NOTE (optional)</div>
+                            <MudTextField @bind-Value="_emailNote" Placeholder="Add a note..."
+                                          Variant="MudBlazor.Variant.Outlined" Margin="Margin.Dense"
+                                          Style="background:#0a1628;" Disabled="@_sendingEmail" />
+                        </div>
+                        <MudButton Variant="MudBlazor.Variant.Filled"
+                                   Style="background:#f59e0b; color:#000; border-radius:10px; height:40px; min-width:140px; font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:1px;"
+                                   OnClick="SendEmailReportAsync"
+                                   Disabled="@(_sendingEmail || string.IsNullOrWhiteSpace(_emailTo))">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                @if (_sendingEmail)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:16px; height:16px; color:#000;" />
+                                    <span>SENDING...</span>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Send" Style="font-size:16px;" />
+                                    <span>SEND REPORT</span>
+                                }
+                            </div>
+                        </MudButton>
+                    </div>
+                </div>
+            }
+            <div style="flex:1; overflow-y:auto; padding:16px 24px 20px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;
+                            gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+                    <MudTextField @bind-Value="_searchText"
+                                  Placeholder="Search any column..."
+                                  Variant="MudVariant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true"
+                                  DebounceInterval="250"
+                                  Style="max-width:360px; font-size:12px;" />
+                    <div style="display:flex; gap:8px;">
+                        <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                                   StartIcon="@Icons.Material.Filled.TableChart"
+                                   Style="border-color:#00ff8833; color:#00ff88; border-radius:8px;"
+                                   OnClick="ExportToExcel">EXCEL</MudButton>
+                        <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                                   StartIcon="@Icons.Material.Filled.Description"
+                                   Style="border-color:#00d4ff33; color:#00d4ff; border-radius:8px;"
+                                   OnClick="ExportToCsv">CSV</MudButton>
+                    </div>
+                </div>
+
+                @* ── Data Grid ── *@
+                <MudDataGrid T="LccSafetyTblDto"
+                             Items="FilteredIncidents"
+                             SortMode="SortMode.Multiple"
+                             Dense="true"
+                             Hover="true"
+                             RowsPerPage="25"
+                             Style="background:#0d1a2e; border:1px solid #0d2137; border-radius:14px; overflow:hidden;">
+                    <Columns>
+
+                        <PropertyColumn Property="x => x.SafetyNoId" Title="Safety No."
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:12px; font-weight:700;" />
+
+                        <PropertyColumn Property="x => x.IncidentDatetime" Title="Incident Date"
+                                        Format="dd MMM yyyy HH:mm"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
+
+                        <PropertyColumn Property="x => x.Site"    Title="Site"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.Segment" Title="Segment"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.Sector"  Title="Sector"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.Region"  Title="Region"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.TypeOfIncident" Title="Incident Type"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.IncidentTitle" Title="Title"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        @* Status badge *@
+                        <TemplateColumn Title="Status" SortBy="x => x.Status"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var isOpen  = string.Equals(context.Item.Status, "Open", StringComparison.OrdinalIgnoreCase);
+                                    var sc      = isOpen ? "#f59e0b" : "#22c55e";
+                                }
+                                <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                                            border-radius:12px; background:@(sc)15; border:1px solid @(sc)44;">
+                                    <div style="width:6px; height:6px; border-radius:50%; background:@sc;"></div>
+                                    <span style="color:@sc; font-size:10px; font-weight:700; letter-spacing:1px;">
+                                        @(context.Item.Status ?? "—")
+                                    </span>
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+
+                        @* Severity badge *@
+                        <TemplateColumn Title="Severity" SortBy="x => x.Severity"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var sev  = context.Item.Severity ?? "";
+                                    var sevc = sev.Equals("Major", StringComparison.OrdinalIgnoreCase) ? "#ff3b3b"
+                                             : sev.Equals("Minor", StringComparison.OrdinalIgnoreCase) ? "#f59e0b"
+                                             : "#7ab3cc";
+                                }
+                                @if (!string.IsNullOrWhiteSpace(sev))
+                                {
+                                    <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                                                border-radius:12px; background:@(sevc)15; border:1px solid @(sevc)44;">
+                                        <span style="color:@sevc; font-size:10px; font-weight:700; letter-spacing:1px;">
+                                            @sev.ToUpper()
+                                        </span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span style="color:#3d6b8a;">—</span>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+
+                        <PropertyColumn Property="x => x.TypeOfInjuryOrIllness" Title="Injury / Illness Type"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.InjuryOrIllnessClassification" Title="Classification"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.InjuryOrIllnessCauseDirect" Title="Direct Cause"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px;" />
+
+                        @* Recordable badge *@
+                        <TemplateColumn Title="Recordable" SortBy="x => x.RecordableInjuryOrIllness"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var rec  = context.Item.RecordableInjuryOrIllness;
+                                    var recc = rec == true ? "#ff3b3b" : "#22c55e";
+                                    var rect = rec == true ? "YES" : rec == false ? "NO" : "—";
+                                }
+                                <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                                            border-radius:12px; background:@(recc)15; border:1px solid @(recc)44;">
+                                    <span style="color:@recc; font-size:10px; font-weight:700; letter-spacing:1px;">
+                                        @rect
+                                    </span>
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+
+                        @* High Potential badge *@
+                        <TemplateColumn Title="High Potential" SortBy="x => x.HighPotential"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var hp  = context.Item.HighPotential;
+                                    var hpc = hp == true ? "#ff3b3b" : "#7ab3cc";
+                                    var hpt = hp == true ? "YES" : hp == false ? "NO" : "—";
+                                }
+                                <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                                            border-radius:12px; background:@(hpc)15; border:1px solid @(hpc)44;">
+                                    <span style="color:@hpc; font-size:10px; font-weight:700; letter-spacing:1px;">
+                                        @hpt
+                                    </span>
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+
+                        <PropertyColumn Property="x => x.LostTimeDays" Title="Lost Time (Days)"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px; text-align:center;" />
+
+                        <PropertyColumn Property="x => x.RestrictionOrTransferDays" Title="Restriction (Days)"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:12px; text-align:center;" />
+
+                        <PropertyColumn Property="x => x.CapaOrIpNo" Title="CAPA / IP No."
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:12px;" />
+
+                        <PropertyColumn Property="x => x.CreatedDatetime" Title="Created"
+                                        Format="dd MMM yyyy"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
+
+                    </Columns>
+                    <PagerContent>
+                        <MudDataGridPager T="LccSafetyTblDto" PageSizeOptions="new[] { 10, 25, 50, 100 }" />
+                    </PagerContent>
+                </MudDataGrid>
+            </div>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public List<LccSafetyTblDto> Incidents       { get; set; } = [];
+    [Parameter] public string                FiscalYearLabel { get; set; } = string.Empty;
+
+    private string _searchText = string.Empty;
+
+    private IEnumerable<LccSafetyTblDto> FilteredIncidents =>
+        (string.IsNullOrWhiteSpace(_searchText)
+            ? Incidents
+            : Incidents.Where(x => MatchesSearch(x, _searchText)))
+        .OrderByDescending(x => x.IncidentDatetime);
+
+    private static bool MatchesSearch(LccSafetyTblDto x, string term) =>
+        Contains(x.SafetyNoId,                      term) ||
+        Contains(x.Site,                             term) ||
+        Contains(x.Segment,                          term) ||
+        Contains(x.Sector,                           term) ||
+        Contains(x.Region,                           term) ||
+        Contains(x.Status,                           term) ||
+        Contains(x.TypeOfIncident,                   term) ||
+        Contains(x.TypeOfInjuryOrIllness,            term) ||
+        Contains(x.IncidentTitle,                    term) ||
+        Contains(x.Severity,                         term) ||
+        Contains(x.InjuryOrIllnessClassification,    term) ||
+        Contains(x.InjuryOrIllnessCauseDirect,       term) ||
+        Contains(x.CapaOrIpNo,                       term) ||
+        (x.IncidentDatetime.HasValue && x.IncidentDatetime.Value.ToString("dd MMM yyyy").Contains(term, StringComparison.OrdinalIgnoreCase));
+
+    private static bool Contains(string? value, string term) =>
+        (value ?? string.Empty).Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    // ── Email report ──────────────────────────────────────────────────────
+    private bool   _showEmailPanel = false;
+    private string _emailTo        = string.Empty;
+    private string _emailNote      = string.Empty;
+    private bool   _sendingEmail   = false;
+
+    private async Task SendEmailReportAsync()
+    {
+        _sendingEmail = true;
+        StateHasChanged();
+        try
+        {
+            await EmailReportService.SendSafetyReportAsync(
+                _emailTo, FiscalYearLabel, Incidents, _emailNote);
+            Snackbar.Add("Safety report sent successfully!", Severity.Success, cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.MarkEmailRead;
+                cfg.VisibleStateDuration = 4000;
+            });
+            _showEmailPanel = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to send: {ex.Message}", Severity.Error, cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.ErrorOutline;
+                cfg.VisibleStateDuration = 6000;
+            });
+        }
+        finally { _sendingEmail = false; StateHasChanged(); }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task ExportToCsv()
+    {
+        var rows = FilteredIncidents.ToList();
+        var sb   = new System.Text.StringBuilder();
+        sb.AppendLine("Safety No.,Incident Date,Site,Segment,Sector,Region,Incident Type,Title," +
+                      "Status,Severity,Injury/Illness Type,Classification,Direct Cause," +
+                      "Recordable,High Potential,Lost Time Days,Restriction Days,CAPA/IP No.,Created");
+
+        foreach (var r in rows)
+        {
+            sb.AppendLine(string.Join(",",
+                Q(r.SafetyNoId),
+                Q(r.IncidentDatetime?.ToString("dd MMM yyyy HH:mm")),
+                Q(r.Site), Q(r.Segment), Q(r.Sector), Q(r.Region),
+                Q(r.TypeOfIncident), Q(r.IncidentTitle),
+                Q(r.Status), Q(r.Severity),
+                Q(r.TypeOfInjuryOrIllness),
+                Q(r.InjuryOrIllnessClassification),
+                Q(r.InjuryOrIllnessCauseDirect),
+                Q(r.RecordableInjuryOrIllness?.ToString()),
+                Q(r.HighPotential?.ToString()),
+                Q(r.LostTimeDays?.ToString()),
+                Q(r.RestrictionOrTransferDays?.ToString()),
+                Q(r.CapaOrIpNo),
+                Q(r.CreatedDatetime?.ToString("dd MMM yyyy"))));
+        }
+
+        var bytes    = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var base64   = Convert.ToBase64String(bytes);
+        var fileName = $"safety_incidents_{DateTime.Today:yyyyMMdd}.csv";
+        await JS.InvokeVoidAsync("lccDownloadFile", fileName, base64, "text/csv");
+    }
+
+    private async Task ExportToExcel()
+    {
+        // Same CSV content with .xlsx mime — browser will open in Excel
+        var rows = FilteredIncidents.ToList();
+        var sb   = new System.Text.StringBuilder();
+        sb.AppendLine("Safety No.\tIncident Date\tSite\tSegment\tSector\tRegion\tIncident Type\tTitle\t" +
+                      "Status\tSeverity\tInjury/Illness Type\tClassification\tDirect Cause\t" +
+                      "Recordable\tHigh Potential\tLost Time Days\tRestriction Days\tCAPA/IP No.\tCreated");
+
+        foreach (var r in rows)
+        {
+            sb.AppendLine(string.Join("\t",
+                r.SafetyNoId,
+                r.IncidentDatetime?.ToString("dd MMM yyyy HH:mm"),
+                r.Site, r.Segment, r.Sector, r.Region,
+                r.TypeOfIncident, r.IncidentTitle,
+                r.Status, r.Severity,
+                r.TypeOfInjuryOrIllness,
+                r.InjuryOrIllnessClassification,
+                r.InjuryOrIllnessCauseDirect,
+                r.RecordableInjuryOrIllness,
+                r.HighPotential,
+                r.LostTimeDays,
+                r.RestrictionOrTransferDays,
+                r.CapaOrIpNo,
+                r.CreatedDatetime?.ToString("dd MMM yyyy")));
+        }
+
+        var bytes    = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var base64   = Convert.ToBase64String(bytes);
+        var fileName = $"safety_incidents_{DateTime.Today:yyyyMMdd}.xls";
+        await JS.InvokeVoidAsync("lccDownloadFile", fileName, base64, "application/vnd.ms-excel");
+    }
+
+    private static string Q(string? v) => $"\"{(v ?? string.Empty).Replace("\"", "\"\"")}\"";
+}

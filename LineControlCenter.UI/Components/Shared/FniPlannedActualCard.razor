@@ -1,0 +1,134 @@
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.UI.Components.Shared
+@using MudBlazor
+
+@{
+    var planPct   = PlannedQty > 0
+                    ? Math.Round(Summary.PassCount / (double)PlannedQty * 100, 1)
+                    : 0.0;
+    var badgeColor = planPct >= 100 ? "#22c55e"
+                   : planPct >= 80  ? "#f59e0b"
+                                    : "#ff3b3b";
+    var badgeText  = planPct >= 100 ? "ON TARGET"
+                   : planPct >= 80  ? "MONITOR"
+                                    : "AT RISK";
+}
+
+<MudPaper Elevation="0"
+          Class="shift-card"
+          Style="--shift-color:#a78bfa; background:#0d1f3c; border:none; border-radius:20px;
+                 box-shadow:inset 0 3px 0 0 #a78bfa; display:flex; flex-direction:column;">
+
+    @* ── Card header ── *@
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+        <MudStack Row="true" AlignItems="MudAlignItems.Center" Spacing="2">
+            <div style="width:clamp(28px,3vw,36px); height:clamp(28px,3vw,36px);
+                        border-radius:10px;
+                        background:#a78bfa22;
+                        border:1px solid #a78bfa44;
+                        display:flex; align-items:center; justify-content:center;">
+                <MudIcon Icon="@Icons.Material.Filled.Speed"
+                         Style="color:#a78bfa; font-size:clamp(14px,1.8vw,20px);" />
+            </div>
+            <div>
+                <MudText Style="color:#a78bfa; font-family:'Orbitron',sans-serif;
+                               font-size:clamp(10px,1.2vw,14px); font-weight:700; letter-spacing:2px;">
+                    FNI PLANNED VS ACTUAL
+                </MudText>
+                <MudText Style="color:#7ab3cc; font-size:clamp(8px,1vw,11px);">
+                    WEEK TO DATE
+                </MudText>
+            </div>
+        </MudStack>
+
+        <div style="border:1px solid @(badgeColor)55;
+                    background:@(badgeColor)11;
+                    border-radius:20px;
+                    padding:4px 12px;">
+            <MudText Style="@($"color:{badgeColor}; font-size:10px; font-weight:700; letter-spacing:2px;")">
+                ● @badgeText
+            </MudText>
+        </div>
+    </div>
+
+    @* ── Load error banner ── *@
+    @if (LoadError != null)
+    {
+        <div style="background:#1a0a0a; border:1px solid #ff3b3b44;
+                    border-radius:10px; padding:8px 14px; margin-bottom:12px;
+                    display:flex; align-items:center; gap:8px;">
+            <MudIcon Icon="@Icons.Material.Filled.Warning"
+                     Style="color:#ff3b3b; font-size:16px;" />
+            <span style="color:#ff3b3b; font-size:11px;">@LoadError</span>
+        </div>
+    }
+
+    @* ── Plan vs Actual gauge ── *@
+    <div style="background:#0a1628;
+                border:1px solid #1a3a5c;
+                border-radius:14px;
+                padding:clamp(6px,1vw,12px) clamp(4px,0.6vw,8px) 0;
+                text-align:center;
+                margin-bottom:16px;">
+        <MudText Style="color:#7ab3cc; font-size:clamp(7px,0.8vw,9px);
+                       letter-spacing:2px; display:block; margin-bottom:4px;">
+            PLAN VS ACTUAL
+        </MudText>
+        <div style="width:100%; aspect-ratio:200/108; max-width:320px; margin:auto;
+                    display:flex; align-items:center; justify-content:center;">
+            <HalfCircleGauge Value="@Summary.PassCount"
+                             Max="@PlannedQty"
+                             DisplayValue="@Summary.PassCount.ToString()"
+                             Id="fni-today-plan" />
+        </div>
+        <MudText Style="color:#7ab3cc; font-size:clamp(7px,0.8vw,9px);
+                       letter-spacing:1px; display:block; padding-bottom:8px;">
+            @Summary.PassCount ACTUAL / @PlannedQty TARGET
+        </MudText>
+    </div>
+
+    @* ── Stat strip ── *@
+    <div style="display:grid;
+                grid-template-columns:repeat(3,1fr);
+                gap:clamp(3px,0.5vw,8px);
+                margin-bottom:14px;">
+        @StatBox("PLANNED", PlannedQty.ToString(),       "#e8f4f8")
+        @StatBox("ACTUAL",  Summary.PassCount.ToString(), "#22c55e")
+        @StatBox("% PLAN",  planPct.ToString("F1") + "%", badgeColor)
+    </div>
+
+    @* ── VIEW DETAILS button ── *@
+    <MudButton Variant="MudVariant.Outlined"
+               FullWidth="true"
+               Size="MudSize.Small"
+               Style="border-color:#a78bfa33 !important; color:#a78bfa !important;
+                      margin-top:auto; border-radius:8px;"
+               StartIcon="@Icons.Material.Filled.OpenInFull"
+               OnClick="() => OnViewDetails.InvokeAsync()">
+        VIEW DETAILS
+    </MudButton>
+
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public FniYieldSummaryDto Summary      { get; set; } = new(0, 0, 0, 0, []);
+    [Parameter, EditorRequired] public int                PlannedQty   { get; set; }
+    [Parameter]                 public string?            LoadError     { get; set; }
+    [Parameter]                 public EventCallback      OnViewDetails { get; set; }
+
+    private RenderFragment StatBox(string lbl, string val, string col) =>
+        @<div style="background:#0a1628;
+                    border:1px solid #1a3a5c;
+                    border-radius:10px;
+                    padding:clamp(5px,0.8vw,10px) clamp(3px,0.5vw,8px);
+                    text-align:center;">
+            <div style="color:#7ab3cc; font-size:clamp(6px,0.7vw,9px);
+                        letter-spacing:1px; margin-bottom:4px;">
+                @lbl
+            </div>
+            <div style="color:@col; font-size:clamp(13px,1.6vw,20px);
+                        font-weight:900; font-family:monospace; line-height:1;">
+                @val
+            </div>
+        </div>;
+}

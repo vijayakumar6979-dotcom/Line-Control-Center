@@ -1,0 +1,1366 @@
+@page "/"
+@rendermode InteractiveServer
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.Application.Queries.Safety
+@using LineControlCenter.Application.Queries.TestData
+@using LineControlCenter.Application.Queries.Compliance
+@using LineControlCenter.UI.Models
+@using LineControlCenter.UI.Components.Shared
+@using MediatR
+@inject ISender Sender
+@inject IDialogService DialogService
+@inject LineControlCenter.UI.Services.RefreshStateService RefreshState
+@inject ILogger<Home> Logger
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>LINE CONTROL CENTER - BACKEND</PageTitle>
+
+@* ═══════════════════════════════════════════════════
+   CONFIGURE SCREEN
+   ═══════════════════════════════════════════════════ *@
+@if (!_initialized)
+{
+    <div style="min-height:100vh;
+                background:radial-gradient(ellipse at 30% 20%,#0d2a4a 0%,#060d1f 60%);
+                display:flex; align-items:center; justify-content:center; padding:24px;">
+
+        <div style="width:100%; max-width:900px;">
+
+            @* ── Title ── *@
+            <div style="text-align:center; margin-bottom:36px;">
+                @* ── Icon ── *@
+                <div style="display:inline-flex; align-items:center; justify-content:center;
+                            width:72px; height:72px; border-radius:20px;
+                            background:linear-gradient(135deg,#00d4ff18,#0055ff0a);
+                            border:1px solid #00d4ff33;
+                            margin-bottom:20px;
+                            box-shadow:0 0 32px #00d4ff18;">
+                    <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing"
+                             Style="color:#00d4ff; font-size:36px;
+                                    filter:drop-shadow(0 0 10px #00d4ffaa);" />
+                </div>
+                @* ── Title ── *@
+                <div style="font-family:'Orbitron',sans-serif;
+                            font-size:22px; font-weight:900;
+                            color:#ffffff; letter-spacing:3px;
+                            display:block; margin-bottom:8px;
+                            text-shadow:0 0 24px #00d4ff33;">
+                    LINE CONTROL CENTER - BACKEND
+                </div>
+                @* <MudText Style="color:#8899aa; font-size:13px; letter-spacing:1px;">
+                    Select your production Family and configure the dashboard
+                </MudText> *@
+            </div>
+
+            <div style="max-width:600px; margin:0 auto;">
+
+                @* ── Group selector + Launch ── *@
+                <MudPaper Elevation="0"
+                          Style="background:#0d1a2e;
+                                 border:1px solid #0d2137;
+                                 border-radius:16px;
+                                 padding:24px;">
+
+                    <MudStack Row="true"
+                              AlignItems="MudAlignItems.Center"
+                              Spacing="2"
+                              Class="mb-3">
+                        <div style="width:3px; height:20px;
+                                    background:linear-gradient(#00d4ff,#0055ff);
+                                    border-radius:2px;"></div>
+                        <MudText Style="color:#00d4ff;
+                                       font-size:11px;
+                                       letter-spacing:3px;
+                                       font-weight:700;">
+                            SELECT PRODUCT FAMILY
+                        </MudText>
+                        @if (_groupsLoading)
+                        {
+                            <MudProgressCircular Size="MudSize.Small"
+                                                 Indeterminate="true"
+                                                 Color="MudColor.Primary" />
+                        }
+                    </MudStack>
+
+                    @* Search box *@
+                    <MudTextField @bind-Value="_groupSearch"
+                                  Placeholder="Search family..."
+                                  Variant="MudVariant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Class="mb-3"
+                                  Style="font-size:13px;"
+                                  Immediate="true" />
+
+                    @* Group list *@
+                    <div style="height:340px; overflow-y:auto; padding-right:4px; margin-bottom:20px;">
+                        @if (_groupLoadError != null)
+                        {
+                            <div style="text-align:center; padding:40px 0;">
+                                <MudIcon Icon="@Icons.Material.Filled.ErrorOutline"
+                                         Style="color:#ff4444; font-size:48px;" />
+                                <MudText Style="color:#ff4444;
+                                               display:block;
+                                               margin-top:8px;
+                                               font-size:12px;">
+                                    @_groupLoadError
+                                </MudText>
+                            </div>
+                        }
+                        else if (_groupsLoading)
+                        {
+                            @for (int i = 0; i < 5; i++)
+                            {
+                                <MudSkeleton Height="52px"
+                                             Style="border-radius:8px;
+                                                    margin-bottom:8px;
+                                                    background:#0d2137;" />
+                            }
+                        }
+                        else if (!FilteredGroups.Any())
+                        {
+                            <div style="text-align:center; padding:40px 0;">
+                                <MudIcon Icon="@Icons.Material.Filled.SearchOff"
+                                         Style="color:#0d2137; font-size:48px;" />
+                                <MudText Style="color:#8899aa;
+                                               display:block;
+                                               margin-top:8px;">
+                                    No groups found
+                                </MudText>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var g in FilteredGroups)
+                            {
+                                var isSelected = _selectedGroup == g;
+                                var rowStyle   = isSelected
+                                    ? "background:linear-gradient(90deg,#00d4ff15,#0055ff08);" +
+                                      "border:1px solid #00d4ff44;"
+                                    : "background:#060d1f; border:1px solid #0d2137;";
+
+                                <div @key="g" style="@rowStyle
+                                            border-radius:10px;
+                                            padding:12px 16px;
+                                            margin-bottom:8px;
+                                            cursor:pointer;
+                                            transition:all 0.15s ease;"
+                                     @onclick="() => SelectGroup(g)">
+                                    <MudStack Row="true"
+                                              AlignItems="MudAlignItems.Center"
+                                              Spacing="2">
+
+                                        @* Selection indicator *@
+                                        <div style="width:8px; height:8px;
+                                                    border-radius:50%;
+                                                    background:@(isSelected ? "#00d4ff" : "#0d2137");
+                                                    flex-shrink:0;
+                                                    transition:background 0.2s;"></div>
+
+                                        <div style="flex:1; min-width:0;">
+                                            @{
+                                                var txtStyle = $"color:{(isSelected ? "#00d4ff" : "#e0eaf8")}; " +
+                                                               "font-size:13px; " +
+                                                               $"font-weight:{(isSelected ? "700" : "400")}; " +
+                                                               "white-space:nowrap; overflow:hidden; text-overflow:ellipsis;";
+                                            }
+                                            <MudText Style="@txtStyle">
+                                                @g.Family
+                                            </MudText>
+                                            @if (g.Family != "ALL")
+                                            {
+                                                <MudText Style="color:#8899aa; font-size:11px;">
+                                                    @g.Customer · @g.Division
+                                                </MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText Style="color:#8899aa; font-size:11px;">
+                                                    All families — Motorola
+                                                </MudText>
+                                            }
+                                        </div>
+
+                                        @if (isSelected)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                                     Style="color:#00d4ff; font-size:18px;" />
+                                        }
+                                    </MudStack>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    @* Launch button *@
+                    <MudButton Variant="MudVariant.Filled"
+                               FullWidth="true"
+                               Size="MudSize.Large"
+                               Disabled="@(_selectedGroup == null)"
+                               Style="background:linear-gradient(135deg,#0b5f8a,#083d66);
+                                      color:#f8fcff;
+                                      font-family:'Orbitron',sans-serif;
+                                      font-weight:900;
+                                      letter-spacing:3px;
+                                      height:52px;
+                                      border-radius:10px;
+                                      font-size:12px;
+                                      border:1px solid #2ea8d655;
+                                      box-shadow:0 8px 18px rgba(2,20,35,0.45), inset 0 1px 0 rgba(130,210,245,0.18);
+                                      text-shadow:0 1px 2px rgba(0,0,0,0.75);"
+                               StartIcon="@Icons.Material.Filled.RocketLaunch"
+                               OnClick="LaunchDashboard">
+                        LAUNCH DASHBOARD
+                    </MudButton>
+
+                    @if (_selectedGroup == null)
+                    {
+                        <MudText Style="color:#8899aa;
+                                       font-size:11px;
+                                       text-align:center;
+                                       display:block;
+                                       margin-top:8px;">
+                            Select a product family to enable launch
+                        </MudText>
+                    }
+
+                </MudPaper>
+
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    @* ═══════════════════════════════════════════════════
+       MAIN DASHBOARD
+       ═══════════════════════════════════════════════════ *@
+    @if (_loading)
+    {
+        <div style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:2000;
+                    display:flex; align-items:center; justify-content:center;
+                    background:rgba(4,9,20,0.92); backdrop-filter:blur(6px);">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:0;
+                        background:linear-gradient(160deg,#0d1f3c,#0a1628);
+                        border:1px solid #00b4d822;
+                        border-radius:24px;
+                        padding:48px 56px;
+                        box-shadow:0 0 60px #00b4d810, inset 0 1px 0 #00b4d820;
+                        min-width:340px;">
+
+                @* ── Icon ring ── *@
+                <div style="position:relative; width:88px; height:88px; margin-bottom:28px;">
+                    <div style="position:absolute; inset:0; border-radius:50%;
+                                border:2px solid #00b4d830;
+                                animation:lcc-spin 3s linear infinite;
+                                border-top-color:#00b4d8;"></div>
+                    <div style="position:absolute; inset:8px; border-radius:50%;
+                                border:2px solid #00b4d830;
+                                animation:lcc-spin-rev 2s linear infinite;
+                                border-bottom-color:#00e5c0;"></div>
+                    <div style="position:absolute; inset:0; display:flex;
+                                align-items:center; justify-content:center;">
+                        <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing"
+                                 Style="color:#00b4d8; font-size:32px;
+                                        filter:drop-shadow(0 0 8px #00b4d888);" />
+                    </div>
+                </div>
+
+                @* ── Label ── *@
+                <div style="font-family:'Orbitron',sans-serif; font-size:11px;
+                            letter-spacing:4px; color:#00b4d8; font-weight:700;
+                            margin-bottom:6px;">
+                    LINE CONTROL CENTER - BACKEND
+                </div>
+                <div style="font-size:12px; color:#7ab3cc; letter-spacing:1px;
+                            margin-bottom:28px;">
+                    Fetching dashboard data…
+                </div>
+
+                @* ── Progress track ── *@
+               @*  <div style="width:100%; height:3px; background:#1a3a5c;
+                            border-radius:2px; overflow:hidden; margin-bottom:10px;">
+                    <div style="height:100%; width:40%; border-radius:2px;
+                                background:linear-gradient(90deg,#2563eb,#00b4d8,#00e5c0);
+                                background-size:200% 100%;
+                                animation:lcc-shimmer 1.4s linear infinite;"></div>
+                </div> *@
+
+                @* ── Dot indicators ── *@
+                @* <div style="display:flex; gap:6px;">
+                    <div style="width:6px; height:6px; border-radius:50%; background:#00b4d8;
+                                animation:lcc-pulse 1.2s ease-in-out 0s infinite;"></div>
+                    <div style="width:6px; height:6px; border-radius:50%; background:#00b4d8;
+                                animation:lcc-pulse 1.2s ease-in-out 0.2s infinite;"></div>
+                    <div style="width:6px; height:6px; border-radius:50%; background:#00b4d8;
+                                animation:lcc-pulse 1.2s ease-in-out 0.4s infinite;"></div>
+                </div> *@
+
+            </div>
+        </div>
+    }
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+
+        @* ── Info Cards Row ── *@
+        <DashboardInfoRow Filter="@_filter" />
+
+        @if (_loading)
+        {
+            <MudGrid Spacing="3">
+                @for (int i = 0; i < 3; i++)
+                {
+                    <MudItem xs="4">
+                        <MudSkeleton Height="480px"
+                                     Style="border-radius:20px; background:#0d1f3c;" />
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+        else if (_dataLoadError != null)
+        {
+            <MudPaper Elevation="0"
+                      Style="background:#1a0a0a; border:1px solid #ff3b3b44;
+                             border-radius:14px; padding:24px; text-align:center;">
+                <MudIcon Icon="@Icons.Material.Filled.ErrorOutline"
+                         Style="color:#ff3b3b; font-size:48px;" />
+                <MudText Style="color:#ff3b3b; display:block; margin-top:8px; font-weight:700;">
+                    Data Load Error
+                </MudText>
+                <MudText Style="color:#7ab3cc; font-size:12px; margin-top:4px;">
+                    @_dataLoadError
+                </MudText>
+                <MudButton Variant="MudVariant.Outlined"
+                           Style="border-color:#ff3b3b; color:#ff3b3b; margin-top:16px;"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="LoadDataAsync">
+                    RETRY
+                </MudButton>
+            </MudPaper>
+        }
+        else
+        {
+            @* ── Safety + FNI Yield + Morning shift ── *@
+            <MudGrid Spacing="3">
+
+                @* ── SAFETY card ── *@
+                <MudItem xs="4">
+                    <SafetyCard Incidents="@_safetyIncidents"
+                                LoadError="@_safetyLoadError"
+                                OnViewDetails="OpenSafetyDrillDown" />
+                </MudItem>
+
+                @* ── FNI DPM card ── *@
+                <MudItem xs="4">
+                    <FniDpmCard Summary="@_fniYield"
+                                LoadError="@_fniLoadError"
+                                DpmTarget="@_filter.DpmTarget"
+                                OnViewDetails="OpenFniDpmWtdDrillDown" />
+                </MudItem>
+
+                @* ── FNI DPM Today card ── *@
+                <MudItem xs="4">
+                    <FniDpmTodayCard Summary="@_fniDpmToday"
+                                     LoadError="@_fniDpmTodayError"
+                                     DpmTarget="@_filter.DpmTarget"
+                                     OnViewDetails="OpenFniDpmTodayDrillDown" />
+                </MudItem>
+
+            </MudGrid>
+
+            @* ── Bay View Live Feed ── *@
+            <BayViewPanel />
+
+            @* ── Risk & Learning ── *@
+            <div style="margin-bottom:16px;">
+                <div style="background:#0a1628; border:1px solid #1a3a5c;
+                            border-radius:16px; overflow:hidden;
+                            box-shadow:0 4px 30px #00000060;">
+                    <div style="height:3px; background:linear-gradient(90deg,#f59e0b,#f59e0b88,transparent);"></div>
+                    <div style="display:flex; align-items:center; gap:12px; padding:14px 20px 12px;">
+                        <div style="width:34px; height:34px; border-radius:10px;
+                                    background:linear-gradient(135deg,#f59e0b18,#f59e0b08);
+                                    border:1px solid #f59e0b30;
+                                    display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <MudIcon Icon="@Icons.Material.Filled.School" Style="color:#f59e0b; font-size:17px;" />
+                        </div>
+                        <div style="flex:1;">
+                            <div style="color:#e8f4f8; font-family:'Orbitron',sans-serif;
+                                        font-size:11px; font-weight:700; letter-spacing:3px;">RISK AND LEARNING</div>
+                            <div style="color:#7ab3cc; font-size:8px; letter-spacing:1px; margin-top:2px;">
+                                REAL-TIME MONITOR
+                            </div>
+                        </div>
+                        @* ── Live indicator ── *@
+                        <div style="margin-left:auto; display:flex; align-items:center; gap:5px;
+                                    background:#f59e0b12; border:1px solid #f59e0b28;
+                                    border-radius:20px; padding:3px 10px;">
+                            <div style="width:5px; height:5px; border-radius:50%; background:#f59e0b;
+                                        box-shadow:0 0 6px #f59e0b; animation:lcc-bay-pulse 1.8s ease-in-out infinite;"></div>
+                            <span style="color:#f59e0b; font-size:8px; font-weight:700; letter-spacing:1px;">LIVE</span>
+                        </div>
+                    </div>
+                    <div style="padding:0 16px 16px;">
+                        <div style="border-radius:10px; overflow:hidden;
+                                    border:0px solid #1a3a5c;
+                                    background:#060d1f;
+                                    position:relative;
+                                    width:100%;
+                                    aspect-ratio:16 / 1.5;">
+                            <iframe src="http://10.126.174.180:8080/embed"
+                                    scrolling="no"
+                                    style="position:absolute; top:0; left:0;
+                                            width:111.1%; height:111.1%;
+                                            border:none; scrollbar-width:none;
+                                            pointer-events:none;
+                                            transform:scale(@RefreshState.RiskZoom.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                                            transform-origin:top left;"
+                                    title="Risk and Learning">
+                            </iframe>
+                            <a href="http://10.126.174.180:8080/embed"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               style="position:absolute; inset:0; z-index:10; cursor:pointer;
+                                      display:block; text-decoration:none;"
+                               title="Open in new tab"></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+             @* ── NCR / CAR Compliance Panel ── *@
+            <NcrCarSummaryPanel Bay="@_filter.Process" />
+
+            @* ── QRQC & JEMSAT card ── *@
+            <div style="margin-top:20px; width:50%;">
+                <QrqcJemsatCard QrqcTickets="@_qrqcTickets"
+                                LoadError="@_qrqcLoadError"
+                                OnViewDetails="OpenQrqcDrillDown" />
+            </div>
+
+            </MudContainer>
+        }
+
+        @* ── Page Footer ── *@
+        <div style="position:sticky; bottom:0; z-index:100;
+                    background:linear-gradient(0deg,#060d1f 80%,transparent);
+                    border-top:1px solid #1a3a5c44;
+                    padding:10px 24px;
+                    display:flex; align-items:center; justify-content:space-between;">
+
+            @* ── Left: action buttons ── *@
+            <div style="display:flex; align-items:center; gap:8px;">
+                <MudTooltip Text="@(_briefingViewed ? "Briefing Completed ✓" : "Briefing Not Viewed — Click to View")"
+                            Placement="Placement.Top" Arrow="true">
+                    @{
+                        var bColor = _briefingViewed ? "#22c55e" : "#ff3b3b";
+                        var bStyle = $"color:{bColor}; background:{bColor}18; border:1px solid {bColor}44; border-radius:10px; transition:background 0.2s, border-color 0.2s; box-shadow:0 0 10px {bColor}33;";
+                    }
+                    <div style="position:relative; display:inline-flex;">
+                        <MudIconButton Icon="@Icons.Material.Filled.CastForEducation"
+                                       Size="MudSize.Medium"
+                                       Style="@bStyle"
+                                       OnClick="OpenBriefing" />
+                        @if (_briefingViewed)
+                        {
+                            <div style="position:absolute; top:-4px; right:-4px;
+                                        width:14px; height:14px; border-radius:50%;
+                                        background:#22c55e; border:2px solid #0d1f3c;
+                                        display:flex; align-items:center; justify-content:center;
+                                        box-shadow:0 0 6px #22c55e88;
+                                        pointer-events:none;">
+                                <MudIcon Icon="@Icons.Material.Filled.Check"
+                                         Style="color:#fff; font-size:9px;" />
+                            </div>
+                        }
+                    </div>
+                </MudTooltip>
+                <MudTooltip Text="User Guide" Placement="Placement.Top" Arrow="true">
+                    <MudIconButton Icon="@Icons.Material.Filled.MenuBook"
+                                   Size="MudSize.Medium"
+                                   Style="color:#00b4d8;
+                                          background:#00b4d810;
+                                          border:1px solid #00b4d828;
+                                          border-radius:10px;
+                                          transition:background 0.2s, border-color 0.2s;"
+                                   OnClick="OpenUserGuide" />
+                </MudTooltip>
+                <MudTooltip Text="Send Feedback" Placement="Placement.Top" Arrow="true">
+                    <MudIconButton Icon="@Icons.Material.Filled.Feedback"
+                                   Size="MudSize.Medium"
+                                   Style="color:#aa55ff;
+                                          background:#aa55ff10;
+                                          border:1px solid #aa55ff28;
+                                          border-radius:10px;
+                                          transition:background 0.2s, border-color 0.2s;"
+                                   OnClick="OpenFeedback" />
+                </MudTooltip>
+            </div>
+
+            @* ── Right: version / last updated ── *@
+            <MudText Style="color:#3d6b8a; font-size:9px; letter-spacing:2px;">
+                LAST UPDATED: @_lastUpdated.ToString("HH:mm:ss")
+                &nbsp;·&nbsp; LINE CONTROL CENTER - BACKEND v2.0
+            </MudText>
+
+        </div>
+
+<style>
+    @@keyframes lcc-bay-pulse {
+        0%, 100% { opacity: 1; box-shadow: 0 0 6px #00d4ff; }
+        50%       { opacity: 0.4; box-shadow: 0 0 2px #00d4ff; }
+    }
+
+    /* ── Shift / Safety card shell ── */
+    .shift-card {
+        padding: clamp(10px, 1.8vw, 24px);
+        transition: box-shadow 0.2s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .shift-card:hover {
+        box-shadow: 0 0 40px color-mix(in srgb, var(--shift-color) 12%, transparent);
+    }
+
+    /* Safety-card layout helpers */
+    .safety-card .safety-ring-wrap {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 120px;
+    }
+    .safety-card .safety-details-btn {
+        margin-top: auto;
+    }
+
+    /* Animated ping ring around safety icon */
+    .safety-icon-ping {
+        position: absolute;
+        inset: -4px;
+        border-radius: 14px;
+        border: 1.5px solid;
+        opacity: 0;
+        animation: safety-ping 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    /* Pulsing status dot */
+    .safety-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        animation: safety-dot-pulse 1.8s ease-in-out infinite;
+    }
+
+    /* Ring arc transition */
+    .safety-ring-arc {
+        transition: stroke-dashoffset 0.8s ease;
+    }
+
+    @@keyframes safety-ping {
+        0%   { opacity: 0.7; transform: scale(1); }
+        75%  { opacity: 0;   transform: scale(1.25); }
+        100% { opacity: 0;   transform: scale(1.25); }
+    }
+    @@keyframes safety-dot-pulse {
+        0%, 100% { opacity: 0.5; }
+        50%      { opacity: 1; }
+    }
+    @@keyframes lcc-spin {
+        to { transform: rotate(360deg); }
+    }
+    @@keyframes lcc-spin-rev {
+        to { transform: rotate(-360deg); }
+    }
+    @@keyframes lcc-shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    @@keyframes lcc-pulse {
+        0%, 100% { opacity: 0.2; transform: scale(0.8); }
+        50%       { opacity: 1;   transform: scale(1.2); }
+    }
+
+    /* ── Info Cards Row ── */
+    .lcc-info-row {
+        display: flex;
+        gap: clamp(6px, 1vw, 16px);
+        margin-bottom: 20px;
+        flex-wrap: nowrap;
+    }
+    .lcc-info-card {
+        flex: 1 1 0;
+        min-width: 0;
+        background: linear-gradient(160deg, #0d1f3c 0%, #0a1628 100%);
+        border: 1px solid #1a3a5c;
+        border-radius: 14px;
+        padding: clamp(10px, 1.2vw, 18px) clamp(10px, 1.2vw, 16px);
+        display: flex;
+        align-items: center;
+        gap: clamp(8px, 1vw, 14px);
+        position: relative;
+        overflow: hidden;
+        box-shadow: inset 0 3px 0 0 #00b4d8, 0 0 14px #00b4d808;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .lcc-info-card:hover {
+        transform: translateY(-2px);
+        border-color: #00b4d844;
+        box-shadow: inset 0 3px 0 0 #00b4d8, 0 4px 28px #00b4d818;
+    }
+    .lcc-info-card-icon {
+        width: clamp(32px, 3.2vw, 44px);
+        height: clamp(32px, 3.2vw, 44px);
+        border-radius: 10px;
+        background: #00b4d810;
+        border: 1px solid #00b4d828;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .lcc-info-card-body {
+        min-width: 0;
+        flex: 1;
+    }
+    .lcc-info-card-label {
+        color: #00b4d8;
+        font-size: clamp(7px, 0.75vw, 9px);
+        font-weight: 700;
+        letter-spacing: 2px;
+        margin-bottom: 3px;
+    }
+    .lcc-info-card-value {
+        color: #e8f4f8;
+        font-size: clamp(11px, 1.1vw, 15px);
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-family: 'Orbitron', sans-serif;
+        letter-spacing: 0.5px;
+    }
+
+    /* Dialog backdrop */
+    :global(.lcc-dialog-backdrop) {
+        background: rgba(4, 9, 20, 0.88) !important;
+        backdrop-filter: blur(8px) !important;
+    }
+</style>
+
+@code {
+    private DashboardFilter        _filter        = new();
+    private bool                   _initialized   = false;
+    private bool                   _loading       = false;
+    private DateTime               _currentTime   = DateTime.Now;
+    private DateTime               _lastUpdated   = DateTime.Now;
+    private DateTime?              _selectedDate  = DateTime.Today;
+    private Timer?                 _clockTimer;
+    private int                    _secondsUntilRefresh = 120;
+    private double                 _refreshProgress     = 100;
+    private const int              RefreshIntervalSeconds = 600;
+    private bool                   _isRefreshing = false;
+
+    // Briefing state
+    private bool   _briefingViewed  = false;
+    private string _lastShiftKey    = string.Empty;
+
+    // Configure screen state
+    private List<GroupItem>  _groups        = new();
+    private GroupItem?       _selectedGroup = null;
+    private bool             _groupsLoading = false;
+    private string           _groupSearch   = "";
+    private string?          _groupLoadError = null;
+    private string?          _dataLoadError  = null;
+
+    // Dashboard state — one CardModel per shift
+    private CardModel _morningCard = new() { Shift = "Morning" };
+    private CardModel _nightCard   = new() { Shift = "Night"   };
+
+    // FNI yield state (WTD)
+    private FniYieldSummaryDto _fniYield          = new(0, 0, 0, 0, []);
+    private string?            _fniLoadError      = null;
+
+    // FNI DPM state (Today)
+    private FniYieldSummaryDto _fniDpmToday       = new(0, 0, 0, 0, []);
+    private string?            _fniDpmTodayError  = null;
+
+
+
+    // Safety state
+    private List<LccSafetyTblDto> _safetyIncidents  = new();
+    private string?               _safetyLoadError  = null;
+
+    // QRQC state
+    private List<LccQrqcTicketDto> _qrqcTickets    = new();
+    private string?                _qrqcLoadError  = null;
+
+    private DateTime FiscalYearStart => DateTime.Now.Month >= 9
+                                            ? new DateTime(DateTime.Now.Year, 9, 1)
+                                            : new DateTime(DateTime.Now.Year - 1, 9, 1);
+    private DateTime FiscalYearEnd   => FiscalYearStart.AddMonths(12).AddDays(-1);
+
+    private IEnumerable<GroupItem> FilteredGroups =>
+        string.IsNullOrWhiteSpace(_groupSearch)
+            ? _groups
+            : _groups.Where(g =>
+                (g.Customer ?? "").Contains(_groupSearch, StringComparison.OrdinalIgnoreCase) ||
+                (g.Division ?? "").Contains(_groupSearch, StringComparison.OrdinalIgnoreCase) ||
+                (g.Family   ?? "").Contains(_groupSearch, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        RefreshState.OnDpmTargetChanged += HandleDpmTargetChanged;
+        _filter.DpmTarget = RefreshState.DpmTarget;
+        await LoadBriefingStateAsync();
+        await LoadGroupsAsync();
+        StateHasChanged();
+    }
+
+    private void HandleDpmTargetChanged(int target)
+    {
+        _filter.DpmTarget = target;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadGroupsAsync()
+    {
+        _groupLoadError = null;
+        _groupsLoading  = true;
+        StateHasChanged();
+        try
+        {
+            var result = await Sender.Send(new GetMotorolaGroupsQuery());
+            if (result.IsFailure)
+            {
+                _groupLoadError = result.Error.Description;
+            }
+            else
+            {
+                _groups = result.Value
+                    .Select(x => new GroupItem
+                    {
+                        Customer = x.CustomerName,
+                        Division = x.DivisionText,
+                        Family   = x.Family
+                    })
+                    .ToList();
+
+                // Prepend ALL sentinel as first / default option
+                var allSentinel = new GroupItem
+                {
+                    Customer = _groups.FirstOrDefault()?.Customer,
+                    Division = null,
+                    Family   = "ALL"
+                };
+                _groups.Insert(0, allSentinel);
+                SelectGroup(allSentinel);
+            }
+        }
+        catch (Exception ex)
+        {
+            _groupLoadError = $"Failed to load groups: {ex.Message}";
+            Logger.LogError(ex, "Failed to load groups");
+        }
+        finally
+        {
+            _groupsLoading = false;
+            StateHasChanged();
+        }
+
+        // Auto-select the currently running family after groups are loaded
+        if (_groups.Count > 0 && _selectedGroup == null)
+            await AutoSelectFamilyAsync();
+    }
+
+    private async Task AutoSelectFamilyAsync()
+    {
+        try
+        {
+            var result = await Sender.Send(new GetCurrentRunningFamilyQuery());
+            if (result.IsFailure)
+            {
+                Logger.LogWarning("AutoSelectFamily: query failed — {Error}", result.Error.Description);
+                return;
+            }
+
+            var (customer, division, family, shiftDate) = result.Value;
+            Logger.LogInformation("AutoSelectFamily: mes_main returned customer={Customer} division={Division} family={Family} date={Date}",
+                customer, division, family, shiftDate);
+
+            if (family == null)
+            {
+                Logger.LogWarning("AutoSelectFamily: family is null, skipping");
+                return;
+            }
+
+            // Auto-set the shift date from the most recent active record
+            if (shiftDate.HasValue)
+                OnDateChanged(shiftDate.Value);
+
+            // Both sources now come from the same MES reference tables so the
+            // family string matches exactly — no fuzzy comparison needed.
+            var match = _groups.FirstOrDefault(g =>
+                string.Equals(g.Family, family, StringComparison.OrdinalIgnoreCase));
+
+            if (match != null)
+                SelectGroup(match);
+            else
+            {
+                Logger.LogWarning("AutoSelectFamily: no match in {Count} groups for family={Family} — falling back to ALL",
+                    _groups.Count, family);
+                var allFallback = _groups.FirstOrDefault(g => g.Family == "ALL");
+                if (allFallback != null)
+                    SelectGroup(allFallback);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Auto-select family failed");
+        }
+    }
+
+    private void SelectGroup(GroupItem g)
+    {
+        _selectedGroup   = g;
+        _filter.Customer = g.Customer;
+        _filter.Division = g.Division;
+        _filter.Family   = g.Family == "ALL" ? null : g.Family;
+        StateHasChanged();
+    }
+
+    private void OnDateChanged(DateTime? date)
+    {
+        _selectedDate = date;
+        if (date.HasValue)
+            _filter.ShiftDate = DateOnly.FromDateTime(date.Value);
+    }
+
+    private async Task LaunchDashboard()
+    {
+        _initialized = true;
+        RefreshState.SetDashboardActive(true);
+        RefreshState.OnReconfigure       += HandleReconfigure;
+        RefreshState.OnRefreshRequested  += HandleRefreshRequested;
+        await LoadDataAsync(showLoading: true);
+        StartClock();
+        StateHasChanged();
+    }
+
+    private void ReOpenFilter()
+    {
+        _initialized     = false;
+        _morningCard     = new() { Shift = "Morning" };
+        _nightCard       = new() { Shift = "Night"   };
+        _safetyIncidents = new();
+        _safetyLoadError = null;
+        _qrqcTickets     = new();
+        _qrqcLoadError   = null;
+        _selectedGroup   = null;
+        _dataLoadError   = null;
+        _fniYield        = new(0, 0, 0, 0, []);
+        _fniLoadError    = null;
+        _fniDpmToday     = new(0, 0, 0, 0, []);
+        _fniDpmTodayError = null;
+        StopClock();
+        RefreshState.OnReconfigure      -= HandleReconfigure;
+        RefreshState.OnRefreshRequested -= HandleRefreshRequested;
+        RefreshState.SetDashboardActive(false);
+        StateHasChanged();
+    }
+
+    private async Task HandleReconfigure()
+    {
+        await InvokeAsync(() =>
+        {
+            ReOpenFilter();
+            StateHasChanged();
+        });
+    }
+
+    private async Task HandleRefreshRequested()
+    {
+        await InvokeAsync(async () =>
+        {
+            // Reset the countdown so the progress arc restarts from 10 minutes
+            _secondsUntilRefresh = RefreshIntervalSeconds;
+            _refreshProgress     = 100;
+            await LoadDataAsync(showLoading: false);
+        });
+    }
+
+    private void StartClock()
+    {
+        StopClock();
+        _secondsUntilRefresh = RefreshIntervalSeconds;
+        _refreshProgress     = 100;
+
+        _clockTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                _currentTime = DateTime.Now;
+                _secondsUntilRefresh--;
+                _refreshProgress = _secondsUntilRefresh / (double)RefreshIntervalSeconds * 100;
+                if (_secondsUntilRefresh <= 0)
+                {
+                    _secondsUntilRefresh = RefreshIntervalSeconds;
+                    _refreshProgress     = 100;
+                    if (!_isRefreshing)
+                        await LoadDataAsync(showLoading: false);
+                }
+
+                // Detect shift change — reset briefing viewed state
+                var currentKey = GetShiftKey();
+                if (currentKey != _lastShiftKey)
+                {
+                    _lastShiftKey   = currentKey;
+                    _briefingViewed = false;
+                    try { await JS.InvokeVoidAsync("localStorage.removeItem", $"briefing_{_lastShiftKey}"); } catch { }
+                }
+
+                RefreshState.Update(
+                    _refreshProgress,
+                    _secondsUntilRefresh,
+                    true,
+                    _currentTime.ToString("HH:mm:ss"),
+                    _currentTime.ToString("ddd, dd MMM yyyy").ToUpper());
+                StateHasChanged();
+            });
+        }, null, 0, 1000);
+    }
+
+    private void StopClock()
+    {
+        _clockTimer?.Dispose();
+        _clockTimer = null;
+    }
+
+    private Task LoadDataAsync() => LoadDataAsync(showLoading: true);
+
+    private async Task LoadDataAsync(bool showLoading)
+    {
+        if (_isRefreshing) return;
+
+        _isRefreshing  = true;
+        _dataLoadError = null;
+
+        if (showLoading)
+        {
+            _loading = true;
+            await InvokeAsync(StateHasChanged);
+        }
+
+        try
+        {
+            // ── Build all queries upfront ──────────────────────────────────
+            var morningDate = _filter.ShiftDate;
+            var nightDate   = _filter.ShiftDate.AddDays(-1);
+
+            var safetyTask = Sender.Send(new GetSafetyIncidentsQuery(FiscalYearStart, FiscalYearEnd));
+            var qrqcTask  = Sender.Send(new GetQrqcTicketsCurrentWeekQuery());
+
+            var fniTask = !string.IsNullOrWhiteSpace(_filter.Customer)
+                ? Sender.Send(new GetFniYieldWtdQuery(_filter.Customer!, _filter.Family))
+                : Task.FromResult<LineControlCenter.Domain.Primitives.Result<FniYieldSummaryDto>>(
+                    LineControlCenter.Domain.Primitives.Result.Success(new FniYieldSummaryDto(0, 0, 0, 0, [])));
+
+            var fniDpmTodayTask = !string.IsNullOrWhiteSpace(_filter.Customer)
+                ? Sender.Send(new GetFniDpmTodayQuery(_filter.Customer!, _filter.Family))
+                : Task.FromResult<LineControlCenter.Domain.Primitives.Result<FniYieldSummaryDto>>(
+                    LineControlCenter.Domain.Primitives.Result.Success(new FniYieldSummaryDto(0, 0, 0, 0, [])));
+
+
+            var morningTask = Sender.Send(new GetBkTestDataQuery(
+                string.IsNullOrEmpty(_filter.Customer) ? null : _filter.Customer,
+                string.IsNullOrEmpty(_filter.Division) ? null : _filter.Division,
+                string.IsNullOrEmpty(_filter.Family)   ? null : _filter.Family,
+                null, "Morning", morningDate, morningDate));
+
+            var nightTask = Sender.Send(new GetBkTestDataQuery(
+                string.IsNullOrEmpty(_filter.Customer) ? null : _filter.Customer,
+                string.IsNullOrEmpty(_filter.Division) ? null : _filter.Division,
+                string.IsNullOrEmpty(_filter.Family)   ? null : _filter.Family,
+                null, "Night", nightDate, nightDate));
+
+            // ── Await all in parallel ──────────────────────────────────────
+            await Task.WhenAll(safetyTask, qrqcTask, fniTask, fniDpmTodayTask, morningTask, nightTask);
+
+            // ── Process safety result ──────────────────────────────────────
+            var safetyResult = await safetyTask;
+            if (safetyResult.IsSuccess)
+            {
+                _safetyIncidents = safetyResult.Value.ToList();
+                _safetyLoadError = null;
+            }
+            else
+            {
+                _safetyLoadError = $"Safety data unavailable: {safetyResult.Error.Description}";
+                Logger.LogWarning("Safety data unavailable: {Error}", safetyResult.Error.Description);
+            }
+
+            // ── Process QRQC result ───────────────────────────────────────────
+            var qrqcResult = await qrqcTask;
+            if (qrqcResult.IsSuccess)
+            {
+                _qrqcTickets   = qrqcResult.Value.ToList();
+                _qrqcLoadError = null;
+            }
+            else
+            {
+                _qrqcTickets   = new();
+                _qrqcLoadError = $"QRQC data unavailable: {qrqcResult.Error.Description}";
+                Logger.LogWarning("QRQC data unavailable: {Error}", qrqcResult.Error.Description);
+            }
+
+            // ── Process FNI result ─────────────────────────────────────────────────
+            var fniResult = await fniTask;
+            if (fniResult.IsSuccess)
+            {
+                _fniYield     = fniResult.Value;
+                _fniLoadError = null;
+            }
+            else
+            {
+                _fniYield     = new(0, 0, 0, 0, []);
+                _fniLoadError = $"FNI data unavailable: {fniResult.Error.Description}";
+                Logger.LogWarning("FNI data unavailable: {Error}", fniResult.Error.Description);
+            }
+
+
+
+            // ── Process FNI DPM Today result ───────────────────────────────────
+            var fniDpmTodayResult = await fniDpmTodayTask;
+            if (fniDpmTodayResult.IsSuccess)
+            {
+                _fniDpmToday      = fniDpmTodayResult.Value;
+                _fniDpmTodayError = null;
+            }
+            else
+            {
+                _fniDpmToday      = new(0, 0, 0, 0, []);
+                _fniDpmTodayError = $"FNI DPM (Today) unavailable: {fniDpmTodayResult.Error.Description}";
+                Logger.LogWarning("FNI DPM Today unavailable: {Error}", fniDpmTodayResult.Error.Description);
+            }
+
+            // NOTE: NCR/CAR/JCAS compliance data is owned by <NcrCarSummaryPanel/>.
+            // Loading it here too caused concurrent DbContext access on the same circuit
+            // ("A second operation was started on this context instance...").
+
+            // ── Process shift card results ─────────────────────────────────
+            var morningResult = await morningTask;
+            _morningCard = new CardModel
+            {
+                Family     = _filter.Family,
+                Customer   = _filter.Customer,
+                Division   = _filter.Division,
+                Shift      = "Morning",
+                ShiftDate  = morningDate.ToString("MM/dd/yyyy"),
+                PlannedQty = _filter.FniPlannedQty,
+                Records    = morningResult.IsSuccess ? morningResult.Value.ToList() : []
+            };
+
+            var nightResult = await nightTask;
+            _nightCard = new CardModel
+            {
+                Family     = _filter.Family,
+                Customer   = _filter.Customer,
+                Division   = _filter.Division,
+                Shift      = "Night",
+                ShiftDate  = nightDate.ToString("MM/dd/yyyy"),
+                PlannedQty = _filter.FniPlannedQty,
+                Records    = nightResult.IsSuccess ? nightResult.Value.ToList() : []
+            };
+
+            _lastUpdated = DateTime.Now;
+        }
+        catch (Exception ex)
+        {
+            _dataLoadError = $"Failed to load data: {ex.Message}";
+            Logger.LogError(ex, "Failed to load dashboard data");
+        }
+        finally
+        {
+            _isRefreshing = false;
+            if (showLoading)
+                _loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private CardModel GetShiftCard(string shift) =>
+        shift == "Morning" ? _morningCard : _nightCard;
+
+    private async Task OpenDrillDown(CardModel card)
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.ShiftDrillDownDialog>
+        {
+            { x => x.Card, card }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.ShiftDrillDownDialog>(
+            null, parameters, options);
+    }
+
+    private async Task OpenProcessBreakdown(CardModel card)
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.ShiftProcessBreakdownDialog>
+        {
+            { x => x.Card, card }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.Large,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.ShiftProcessBreakdownDialog>(
+            null, parameters, options);
+    }
+
+    private async Task OpenSafetyDrillDown()
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.SafetyDrillDownDialog>
+        {
+            { x => x.Incidents,       _safetyIncidents },
+            { x => x.FiscalYearLabel, $"SEP {FiscalYearStart.Year} – AUG {FiscalYearEnd.Year}" }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.SafetyDrillDownDialog>(
+            null, parameters, options);
+    }
+
+    private async Task OpenQrqcDrillDown()
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.QrqcDrillDownDialog>
+        {
+            { x => x.Tickets, _qrqcTickets }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.QrqcDrillDownDialog>(
+            null, parameters, options);
+    }
+
+    private async Task OpenFniDrillDown()
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.FniYieldDrillDownDialog>
+        {
+            { x => x.Summary,  _fniYield },
+            { x => x.Customer, _filter.Customer ?? string.Empty },
+            { x => x.Family,   _filter.Family   ?? string.Empty }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.FniYieldDrillDownDialog>(
+            null, parameters, options);
+    }
+
+    private async Task OpenFniDpmWtdDrillDown()
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.FniDpmWtdDrillDownDialog>
+        {
+            { x => x.Summary,   _fniYield },
+            { x => x.Customer,  _filter.Customer  ?? string.Empty },
+            { x => x.Family,    _filter.Family },
+            { x => x.DpmTarget, _filter.DpmTarget }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.FniDpmWtdDrillDownDialog>(
+            null, parameters, options);
+    }
+
+    private async Task OpenFniDpmTodayDrillDown()
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.FniDpmTodayDrillDownDialog>
+        {
+            { x => x.Summary,   _fniDpmToday },
+            { x => x.Customer,  _filter.Customer  ?? string.Empty },
+            { x => x.Family,    _filter.Family },
+            { x => x.DpmTarget, _filter.DpmTarget }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.FniDpmTodayDrillDownDialog>(
+            null, parameters, options);
+    }
+
+
+
+    private async Task OpenNcrCarDetail(NcrCarGroupSummary group)
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.NcrCarDetailDialog>
+        {
+            { x => x.Group, group }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.NcrCarDetailDialog>(
+            null, parameters, options);
+    }
+
+    private async Task OpenJcasCarDetail(string category, List<JcasMainTblDto> items)
+    {
+        var parameters = new DialogParameters<LineControlCenter.UI.Components.Dialogs.CarDetailDialog>
+        {
+            { x => x.CategoryName, category },
+            { x => x.Items,        items    }
+        };
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.ExtraLarge,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.CarDetailDialog>(
+            null, parameters, options);
+    }
+
+    private static bool IsJcasCompleted(JcasMainTblDto x) =>
+        x.D7IsCompleted ||
+        x.Status?.Equals("Closed", StringComparison.OrdinalIgnoreCase) == true;
+
+    private async Task OpenUserGuide()
+    {
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.Large,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.UserGuideDialog>(
+            null, options);
+    }
+
+    private async Task OpenFeedback()
+    {
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.Small,
+            FullWidth     = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = true
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.FeedbackDialog>(
+            null, options);
+    }
+
+    // ── Briefing helpers ────────────────────────────────────────────────────
+
+    /// Returns a key like "2025-06-14-AM" or "2025-06-14-PM" for the current shift window.
+    private static string GetShiftKey()
+    {
+        var now   = DateTime.Now;
+        var shift = now.Hour >= 7 && now.Hour < 19 ? "AM" : "PM";
+        // Night shift that started previous day uses that day's date
+        var date  = (now.Hour < 7) ? now.AddDays(-1).ToString("yyyy-MM-dd") : now.ToString("yyyy-MM-dd");
+        return $"{date}-{shift}";
+    }
+
+    private async Task LoadBriefingStateAsync()
+    {
+        try
+        {
+            _lastShiftKey = GetShiftKey();
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", $"briefing_{_lastShiftKey}");
+            _briefingViewed = stored == "1";
+        }
+        catch { _briefingViewed = false; }
+    }
+
+    private async Task OpenBriefing()
+    {
+        var options = new MudDialogOptions
+        {
+            MaxWidth      = MaxWidth.False,
+            FullWidth     = true,
+            FullScreen    = true,
+            NoHeader      = true,
+            CloseButton   = false,
+            BackdropClick = false
+        };
+        await DialogService.ShowAsync<LineControlCenter.UI.Components.Dialogs.BriefingDialog>(
+            null, options);
+
+        // Mark as viewed after dialog closes
+        _briefingViewed = true;
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", $"briefing_{_lastShiftKey}", "1");
+        }
+        catch { /* ignore */ }
+        StateHasChanged();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        StopClock();
+        RefreshState.OnDpmTargetChanged      -= HandleDpmTargetChanged;
+        RefreshState.OnReconfigure           -= HandleReconfigure;
+        RefreshState.OnRefreshRequested      -= HandleRefreshRequested;
+        RefreshState.SetDashboardActive(false);
+        return ValueTask.CompletedTask;
+    }
+
+    public class GroupItem
+    {
+        public string? Customer { get; set; }
+        public string? Division { get; set; }
+        public string? Family   { get; set; }
+    }
+}

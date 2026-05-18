@@ -1,0 +1,218 @@
+@using LineControlCenter.Application.DTOs
+@using MudBlazor
+
+<div style="background:#0a1628; border:1px solid #1a3a5c;
+           border-radius:16px; overflow:hidden;
+           box-shadow:0 4px 30px #00000060;">
+
+    @* ── Accent bar ── *@
+    <div style="height:3px; background:linear-gradient(90deg,#00d4ff,#00d4ff88,transparent);"></div>
+
+    <div style="padding:20px;">
+
+    @* ── Header ── *@
+    <div style="display:flex; align-items:center;
+                justify-content:space-between; margin-bottom:20px;">
+        <MudStack Row="true" AlignItems="MudAlignItems.Center" Spacing="2">
+            <div style="width:clamp(28px,3vw,40px); height:clamp(28px,3vw,40px); border-radius:12px;
+                        background:linear-gradient(135deg,#00d4ff18,#00d4ff08);
+                        border:1px solid #00d4ff33;
+                        display:flex; align-items:center; justify-content:center;">
+                <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber"
+                         Style="color:#00d4ff; font-size:clamp(14px,1.8vw,22px);" />
+            </div>
+            <div>
+                <MudText Style="color:#00d4ff; font-family:'Orbitron',sans-serif;
+                               font-size:clamp(10px,1.2vw,14px); font-weight:700; letter-spacing:2px;">
+                    QRQC &amp; JEMSAT
+                </MudText>
+                <MudText Style="color:#7ab3cc; font-size:clamp(8px,0.9vw,10px); letter-spacing:1px;">
+                    CURRENT WEEK · MSI GP · HLA
+                </MudText>
+            </div>
+        </MudStack>
+
+        @* Week range badge *@
+        <div style="border:1px solid #00d4ff33;
+                    background:#00d4ff0c;
+                    border-radius:20px; padding:5px 14px;
+                    display:flex; align-items:center; gap:6px;">
+            <MudIcon Icon="@Icons.Material.Filled.CalendarToday"
+                     Style="color:#00d4ff; font-size:13px;" />
+            <span style="color:#00d4ff; font-size:10px; font-weight:700; letter-spacing:1px;">
+                @WeekRangeLabel
+            </span>
+        </div>
+    </div>
+
+    @* Error banner *@
+    @if (LoadError != null)
+    {
+        <div style="background:#1a0a0a; border:1px solid #ff3b3b44;
+                    border-radius:10px; padding:8px 14px; margin-bottom:12px;
+                    display:flex; align-items:center; gap:8px;">
+            <MudIcon Icon="@Icons.Material.Filled.Warning"
+                     Style="color:#ff3b3b; font-size:16px;" />
+            <span style="color:#ff3b3b; font-size:11px;">@LoadError</span>
+        </div>
+    }
+
+    @* ── Metric Tiles ── *@
+    <div style="display:grid; grid-template-columns:1fr 1fr;
+                gap:clamp(4px,0.8vw,10px); margin-bottom:16px;">
+
+        @* QRQC tile — clickable *@
+        <div @onclick="() => OnViewDetails.InvokeAsync()"
+             style="background:linear-gradient(160deg,#0a1628,#0d1f3c);
+                    border:1px solid #a855f744;
+                    border-radius:12px;
+                    padding:clamp(10px,1.4vw,18px) clamp(6px,1vw,12px);
+                    text-align:center;
+                    cursor:pointer;
+                    transition:border-color 0.2s, box-shadow 0.2s;"
+             onmouseover="this.style.borderColor='#00d4ffaa'; this.style.boxShadow='0 0 16px #00d4ff22';"
+             onmouseout="this.style.borderColor='#00d4ff44';  this.style.boxShadow='none';">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                <span style="color:#7ab3cc; font-size:clamp(7px,0.9vw,9px); letter-spacing:2px;">
+                    QRQC TICKETS
+                </span>
+                <div style="display:flex; align-items:center; gap:4px;
+                            background:@(QrqcMoodColor)18; border:1px solid @(QrqcMoodColor)44;
+                            border-radius:20px; padding:2px 8px;">
+                    <MudIcon Icon="@QrqcMoodIcon" Style="@($"color:{QrqcMoodColor}; font-size:11px;")" />
+                    <span style="color:@QrqcMoodColor; font-size:8px; font-weight:700; letter-spacing:1px;">
+                        @QrqcMoodLabel
+                    </span>
+                </div>
+            </div>
+            <div style="color:#00d4ff;
+                        font-family:'Orbitron',sans-serif;
+                        font-size:clamp(40px,5.5vw,68px);
+                        font-weight:900;
+                        line-height:1;
+                        letter-spacing:4px;
+                        text-shadow:0 0 36px #00d4ffaa, 0 0 72px #00d4ff33;">
+                @QrqcTickets.Count
+            </div>
+            <div style="color:#00d4ff99; font-size:clamp(8px,0.9vw,10px);
+                        letter-spacing:2px; margin-top:6px; font-weight:700;">
+                THIS WEEK
+            </div>
+            <div style="display:flex; align-items:center; justify-content:center;
+                        gap:4px; margin-top:8px;">
+                <MudIcon Icon="@Icons.Material.Filled.OpenInNew"
+                         Style="color:#00d4ff66; font-size:12px;" />
+                <span style="color:#00d4ff66; font-size:9px; letter-spacing:1px;">
+                    CLICK FOR DETAILS
+                </span>
+            </div>
+        </div>
+
+        @* JEMSAT tile — static *@
+        <div style="background:linear-gradient(160deg,#0a1628,#0d1f3c);
+                    border:1px solid #a855f744;
+                    border-radius:12px;
+                    padding:clamp(10px,1.4vw,18px) clamp(6px,1vw,12px);
+                    text-align:center;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                <span style="color:#7ab3cc; font-size:clamp(7px,0.9vw,9px); letter-spacing:2px;">
+                    JEMSAT TICKETS
+                </span>
+                <div style="display:flex; align-items:center; gap:4px;
+                            background:#22c55e18; border:1px solid #22c55e44;
+                            border-radius:20px; padding:2px 8px;">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color:#22c55e; font-size:11px;" />
+                    <span style="color:#22c55e; font-size:8px; font-weight:700; letter-spacing:1px;">GOOD</span>
+                </div>
+            </div>
+            <div style="color:#a855f7;
+                        font-family:'Orbitron',sans-serif;
+                        font-size:clamp(40px,5.5vw,68px);
+                        font-weight:900;
+                        line-height:1;
+                        letter-spacing:4px;
+                        text-shadow:0 0 36px #a855f7aa, 0 0 72px #a855f733;">
+                0
+            </div>
+            <div style="color:#a855f799; font-size:clamp(8px,0.9vw,10px);
+                        letter-spacing:2px; margin-top:6px; font-weight:700;">
+                THIS WEEK
+            </div>
+            <div style="margin-top:8px;">
+                <span style="color:#a855f766; font-size:9px; letter-spacing:1px;">
+                    COMING SOON
+                </span>
+            </div>
+        </div>
+
+    </div>
+
+    @* ── Bottom row: Triggering ── *@
+    <div style="margin-top:4px;">
+
+        @* Triggering *@
+        <div style="background:linear-gradient(160deg,#0a1628,#0d1f3c);
+                    border:1px solid #f59e0b44;
+                    border-radius:12px;
+                    padding:clamp(10px,1.4vw,18px) clamp(6px,1vw,12px);
+                    text-align:center;
+                    width:50%;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                <span style="color:#7ab3cc; font-size:clamp(7px,0.9vw,9px); letter-spacing:2px;">
+                    TRIGGERING
+                </span>
+                <div style="display:flex; align-items:center; gap:4px;
+                            background:#22c55e18; border:1px solid #22c55e44;
+                            border-radius:20px; padding:2px 8px;">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color:#22c55e; font-size:11px;" />
+                    <span style="color:#22c55e; font-size:8px; font-weight:700; letter-spacing:1px;">GOOD</span>
+                </div>
+            </div>
+            <div style="color:#f59e0b;
+                        font-family:'Orbitron',sans-serif;
+                        font-size:clamp(40px,5.5vw,68px);
+                        font-weight:900;
+                        line-height:1;
+                        letter-spacing:4px;
+                        text-shadow:0 0 36px #f59e0baa, 0 0 72px #f59e0b33;">
+                0
+            </div>
+            <div style="color:#f59e0b99; font-size:clamp(8px,0.9vw,10px);
+                        letter-spacing:2px; margin-top:6px; font-weight:700;">
+                THIS WEEK
+            </div>
+        </div>
+
+    </div>
+
+    </div>
+
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<LccQrqcTicketDto> QrqcTickets  { get; set; } = [];
+    [Parameter]                 public string?                LoadError    { get; set; }
+    [Parameter]                 public EventCallback          OnViewDetails { get; set; }
+
+    private static string WeekRangeLabel
+    {
+        get
+        {
+            var today     = DateTime.Today;
+            int diff      = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+            var monday    = today.AddDays(-diff);
+            var sunday    = monday.AddDays(6);
+            return $"{monday:dd MMM} – {sunday:dd MMM}";
+        }
+    }
+
+    private string QrqcMoodColor => QrqcTickets.Count == 0 ? "#22c55e"
+                                  : QrqcTickets.Count <= 3 ? "#f59e0b"
+                                                           : "#ff3b3b";
+    private string QrqcMoodIcon  => QrqcTickets.Count == 0 ? Icons.Material.Filled.CheckCircle
+                                  : QrqcTickets.Count <= 3 ? Icons.Material.Filled.Warning
+                                                           : Icons.Material.Filled.Error;
+    private string QrqcMoodLabel => QrqcTickets.Count == 0 ? "GOOD"
+                                  : QrqcTickets.Count <= 3 ? "MONITOR"
+                                                           : "CRITICAL";
+}

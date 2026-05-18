@@ -1,0 +1,1158 @@
+@using MudBlazor
+
+<div style="background:linear-gradient(160deg,#060d1f 0%,#0a1628 100%);
+            height:90vh; max-height:90vh; padding:0; display:flex; flex-direction:column; overflow:hidden;">
+
+    @* ---* Header ---* *@
+    <div style="background:linear-gradient(90deg,#0d1f3c,#0a1628);
+                border-bottom:1px solid #1a3a5c;
+                padding:16px 24px;
+                display:flex; align-items:center; justify-content:space-between;
+                flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:40px; height:40px; border-radius:12px;
+                        background:linear-gradient(135deg,#00b4d818,#00b4d808);
+                        border:1px solid #00b4d833;
+                        display:flex; align-items:center; justify-content:center;
+                        box-shadow:0 0 20px #00b4d818;">
+                <MudIcon Icon="@Icons.Material.Filled.MenuBook"
+                         Style="color:#00b4d8; font-size:20px;" />
+            </div>
+            <div>
+                <div style="font-family:'Orbitron',sans-serif; font-size:13px;
+                            font-weight:900; color:#e8f4f8; letter-spacing:3px;">
+                    USER GUIDE
+                </div>
+                <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-top:2px;">
+                    LINE CONTROL CENTER -- DASHBOARD REFERENCE
+                </div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="position:relative; display:flex; align-items:center;">
+                <MudIcon Icon="@Icons.Material.Filled.Search"
+                         Style="position:absolute; left:10px; color:#7ab3cc; font-size:16px; pointer-events:none;" />
+                <input @bind="_searchText" @bind:event="oninput"
+                       placeholder="Search guide"
+                       style="background:#0a1628; border:1px solid #1a3a5c; border-radius:8px;
+                              color:#e8f4f8; font-size:12px; padding:7px 12px 7px 32px;
+                              outline:none; width:200px; letter-spacing:0.3px;" />
+                @if (!string.IsNullOrWhiteSpace(_searchText))
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Size="MudSize.Small"
+                                   Style="position:absolute; right:4px; color:#7ab3cc; padding:2px;"
+                                   OnClick="@(() => _searchText = string.Empty)" />
+                }
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                           Style="color:#7ab3cc; background:#1a3a5c44; border-radius:8px;"
+                           OnClick="Close" />
+        </div>
+    </div>
+
+    @* ---* Body: sidebar + content ---* *@
+    <div style="flex:1; display:flex; overflow:hidden;">
+
+        @* ---* Sidebar nav ---* *@
+        <div style="width:200px; flex-shrink:0; background:#060d1f;
+                    border-right:1px solid #1a3a5c;
+                    overflow-y:auto; padding:16px 10px;">
+            @foreach (var s in _sections)
+            {
+                var isActive = _activeSection == s.Id;
+                var visible  = string.IsNullOrWhiteSpace(_searchText) ||
+                               s.Keywords.Any(k => k.Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+                if (!visible) continue;
+                <div @onclick="() => SetSection(s.Id)"
+                     style="display:flex; align-items:center; gap:8px;
+                            padding:9px 10px; border-radius:8px; cursor:pointer; margin-bottom:2px;
+                            background:@(isActive ? s.Color + "18" : "transparent");
+                            border:1px solid @(isActive ? s.Color + "44" : "transparent");
+                            transition:all 0.15s;">
+                    <MudIcon Icon="@s.Icon"
+                             Style="@($"color:{(isActive ? s.Color : "#3d6b8a")}; font-size:16px; flex-shrink:0;")" />
+                    <span style="color:@(isActive ? s.Color : "#7ab3cc"); font-size:10px;
+                                 font-weight:@(isActive ? "700" : "400"); letter-spacing:1px;
+                                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        @s.Title
+                    </span>
+                </div>
+            }
+        </div>
+
+        @* ---* Content pane ---* *@
+        <div style="flex:1; overflow-y:auto; padding:24px 28px;" id="ug-content">
+
+        @* ---* Local render helpers ---* *@
+        @{
+            void GuideHeader(string icon, string title, string subtitle, string color)
+            {
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                    <div style="width:36px; height:36px; border-radius:10px;
+                                background:@(color)18; border:1px solid @(color)33;
+                                display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <MudIcon Icon="@icon" Style="@($"color:{color}; font-size:18px;")" />
+                    </div>
+                    <div>
+                        <div style="color:@color; font-family:'Orbitron',sans-serif;
+                                    font-size:11px; font-weight:700; letter-spacing:2px;">@title</div>
+                        <div style="color:#7ab3cc; font-size:10px; letter-spacing:1px; margin-top:1px;">@subtitle</div>
+                    </div>
+                    <div style="flex:1; height:1px; background:linear-gradient(90deg,@(color)33,transparent); margin-left:4px;"></div>
+                </div>
+            }
+
+            void StepBox(string num, string title, string desc, string color)
+            {
+                <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                        <div style="width:22px; height:22px; border-radius:50%;
+                                    background:@(color)22; border:1px solid @(color)44;
+                                    display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <span style="color:@color; font-size:10px; font-weight:700;">@num</span>
+                        </div>
+                        <span style="color:#e8f4f8; font-size:11px; font-weight:600;">@title</span>
+                    </div>
+                    <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">@desc</div>
+                </div>
+            }
+
+            void CalcBox(string name, string formula, string desc, string color)
+            {
+                <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px;
+                            padding:10px 14px; margin-bottom:8px;">
+                    <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:4px;">@name</div>
+                    <div style="color:@color; font-family:monospace; font-size:11px; font-weight:700;
+                                margin-bottom:5px; letter-spacing:0.3px;">@formula</div>
+                    <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">@desc</div>
+                </div>
+            }
+
+            void ThresholdRow(string badge, string desc, string color)
+            {
+                <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:6px;">
+                    <span style="display:inline-block; border:1px solid @(color)44; background:@(color)0c;
+                                 border-radius:20px; padding:2px 10px;
+                                 color:@color; font-size:9px; font-weight:700; letter-spacing:1px;
+                                 white-space:nowrap; flex-shrink:0;">@badge</span>
+                    <span style="color:#7ab3cc; font-size:11px; line-height:1.5;">@desc</span>
+                </div>
+            }
+
+            void ExRow(string label, string value, string color)
+            {
+                <div style="display:flex; align-items:center; justify-content:space-between;
+                            padding:5px 0; border-bottom:1px solid #1a3a5c22;">
+                    <span style="color:#7ab3cc; font-size:11px;">@label</span>
+                    <span style="color:@color; font-size:11px; font-weight:700; font-family:monospace;">@value</span>
+                </div>
+            }
+
+            void InfoBox(string icon, string title, string body, string color)
+            {
+                <div style="background:@(color)0a; border:1px solid @(color)22; border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:flex-start; gap:8px;">
+                        <MudIcon Icon="@icon" Style="@($"color:{color}; font-size:15px; flex-shrink:0; margin-top:1px;")" />
+                        <div>
+                            <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:4px;">@title</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">@body</div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+
+            @if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                var matchCount = _sections.Count(s =>
+                    s.Keywords.Any(k => k.Contains(_searchText, StringComparison.OrdinalIgnoreCase)));
+                <div style="background:#00b4d80a; border:1px solid #00b4d822; border-radius:10px;
+                            padding:8px 16px; margin-bottom:16px; font-size:11px; color:#7ab3cc;">
+                    Showing <span style="color:#00b4d8; font-weight:700;">@matchCount</span>
+                    section@(matchCount == 1 ? "" : "s") matching
+                    "<span style="color:#e8f4f8;">@_searchText</span>"
+                </div>
+            }
+
+            @* ------------------------------------------
+               OVERVIEW
+               ------------------------------------------ *@
+            @if (SectionVisible("intro"))
+            {
+                <div id="sec-intro" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.Info, "OVERVIEW", "What this dashboard does and where its data comes from", "#00b4d8"); }
+
+                    <div style="background:linear-gradient(135deg,#00b4d80a,#0055ff06);
+                                border:1px solid #00b4d822; border-radius:14px;
+                                padding:16px 20px; margin-bottom:16px;">
+                        <div style="display:flex; align-items:flex-start; gap:12px;">
+                            <MudIcon Icon="@Icons.Material.Filled.Info"
+                                     Style="color:#00b4d8; font-size:20px; flex-shrink:0; margin-top:2px;" />
+                            <div>
+                                <div style="color:#e8f4f8; font-size:13px; font-weight:600; margin-bottom:6px;">
+                                    About This Dashboard
+                                </div>
+                                <div style="color:#7ab3cc; font-size:12px; line-height:1.9;">
+                                    The <span style="color:#00b4d8; font-weight:700;">Line Control Center -- Backend</span>
+                                    is a real-time production monitoring dashboard. It pulls live data from two separate databases --
+                                    the <span style="color:#e8f4f8; font-weight:600;">MES (Manufacturing Execution System)</span> for
+                                    test results and FNI inspection records, and the
+                                    <span style="color:#e8f4f8; font-weight:600;">LCC (Line Control Center)</span> database for
+                                    safety incidents and quality compliance records.
+                                    <br /><br />
+                                    The dashboard shows six panels: <span style="color:#f59e0b;">Safety</span>,
+                                    <span style="color:#00d4ff;">FNI Yield</span>,
+                                    <span style="color:#a78bfa;">FNI Planned vs Actual</span>,
+                                    a live <span style="color:#00b4d8;">Bay Camera feed</span>, and the
+                                    <span style="color:#a78bfa;">NCR / CAR Compliance panel</span> at the bottom.
+                                    <br /><br />
+                                    The screen refreshes automatically every <span style="color:#00b4d8; font-weight:700;">120 seconds</span>.
+                                    You can also press the refresh button in the toolbar to update immediately at any time.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+                        <div style="background:#060d1f; border:1px solid #f59e0b33; border-radius:10px; padding:12px 14px;">
+                            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                                <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety" Style="color:#f59e0b; font-size:16px;" />
+                                <span style="color:#f59e0b; font-size:10px; font-weight:700; letter-spacing:1px;">SAFETY</span>
+                            </div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">Tracks workplace incidents for the current fiscal year (Sep--Aug). Shows days without incident and trend.</div>
+                        </div>
+                        <div style="background:#060d1f; border:1px solid #00d4ff33; border-radius:10px; padding:12px 14px;">
+                            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Speed" Style="color:#00d4ff; font-size:16px;" />
+                                <span style="color:#00d4ff; font-size:10px; font-weight:700; letter-spacing:1px;">FNI YIELD</span>
+                            </div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">Shows the week-to-date pass rate at the Final Numeric Inspection step for your selected product family.</div>
+                        </div>
+                        <div style="background:#060d1f; border:1px solid #a78bfa33; border-radius:10px; padding:12px 14px;">
+                            <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Speed" Style="color:#a78bfa; font-size:16px;" />
+                                <span style="color:#a78bfa; font-size:10px; font-weight:700; letter-spacing:1px;">FNI PLAN VS ACTUAL</span>
+                            </div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">Compares how many units actually passed FNI this week against your configured weekly target quantity.</div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ------------------------------------------
+               HOW TO USE
+               ------------------------------------------ *@
+            @if (SectionVisible("howto"))
+            {
+                <div id="sec-howto" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.Tune, "HOW TO USE THE DASHBOARD", "Step-by-step walk-through from configure to live view", "#00b4d8"); }
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
+                        @{ StepBox("1", "Select a Product Family",
+                            "On the configure screen, scroll or search the list on the left. Click any row to highlight it. " +
+                            "Each row shows the Family name and the Customer / Division it belongs to. " +
+                            "Example: pick 'G85' under 'Motorola / EMS' to track that product line.",
+                            "#00b4d8"); }
+                        @{ StepBox("2", "Set Your Shift Date",
+                            "Use the date-picker to choose the date you want to review. " +
+                            "This date is used directly for all data queries. " +
+                            "Important: if you are reviewing Night Shift, the dashboard automatically looks back one day because night shift crosses midnight.",
+                            "#00b4d8"); }
+                        @{ StepBox("3", "Enter the Planned Quantity",
+                            "Enter the weekly FNI target in the 'Planned Qty' field. This is the number of units you expect to pass the FNI inspection step by end of the current week. " +
+                            "The default is 10,000. Change it to match your actual weekly production target before launching. " +
+                            "Example: enter 8000 if your weekly FNI plan is 8,000 units.",
+                            "#00b4d8"); }
+                        @{ StepBox("4", "Launch the Dashboard",
+                            "Click LAUNCH DASHBOARD. The system fetches all panels simultaneously. " +
+                            "A loading spinner appears while data is being retrieved. " +
+                            "Once loaded, the live view appears and auto-refresh begins counting down from 120 seconds.",
+                            "#00b4d8"); }
+                    </div>
+
+                    <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:12px; padding:14px 18px;">
+                        <div style="color:#e8f4f8; font-size:11px; font-weight:700; letter-spacing:1px; margin-bottom:10px;">TOP BAR CONTROLS (TOP-RIGHT OF SCREEN)</div>
+                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+                            <div style="display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Style="color:#f59e0b; font-size:16px; flex-shrink:0; margin-top:1px;" />
+                                <div>
+                                    <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:3px;">SET DPM TARGET</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">Opens a popover to change the DPM (Defects Per Million) target threshold. Applies immediately in real time. See the Top Bar Controls section for full details.</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Tune" Style="color:#00b4d8; font-size:16px; flex-shrink:0; margin-top:1px;" />
+                                <div>
+                                    <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:3px;">RECONFIGURE</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">Returns you to the configure screen so you can change the product family, shift date, or planned quantity and relaunch.</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Refresh" Style="color:#00b4d8; font-size:16px; flex-shrink:0; margin-top:1px;" />
+                                <div>
+                                    <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:3px;">REFRESH NOW</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">Forces an immediate reload of all dashboard panels without waiting for the 120-second countdown to finish.</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.ZoomIn" Style="color:#00e5c0; font-size:16px; flex-shrink:0; margin-top:1px;" />
+                                <div>
+                                    <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:3px;">SCREEN ZOOM</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">Opens a zoom panel with separate size sliders for the BACKEND – SOMS camera and the Risk & Learning panel. See the Top Bar Controls section for full details.</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.CastForEducation" Style="color:#22c55e; font-size:16px; flex-shrink:0; margin-top:1px;" />
+                                <div>
+                                    <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:3px;">BRIEFING</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">Opens the daily shift briefing. Badge turns green once viewed to confirm you have checked it for this session.</div>
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.MenuBook" Style="color:#00b4d8; font-size:16px; flex-shrink:0; margin-top:1px;" />
+                                <div>
+                                    <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:3px;">USER GUIDE</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">Opens this guide at any time while viewing the dashboard.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ------------------------------------------
+               TOP BAR CONTROLS
+               ------------------------------------------ *@
+            @if (SectionVisible("topbar"))
+            {
+                <div id="sec-topbar" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.Dashboard, "TOP BAR CONTROLS", "Every button in the top-right toolbar — what it does and how to use it", "#00e5c0"); }
+
+                    @* DPM Target *@
+                    <div style="background:#060d1f; border:1px solid #f59e0b33; border-radius:12px; padding:14px 18px; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                            <div style="width:30px; height:30px; border-radius:8px; background:#f59e0b18; border:1px solid #f59e0b33; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Style="color:#f59e0b; font-size:16px;" />
+                            </div>
+                            <div style="color:#f59e0b; font-size:10px; font-weight:700; letter-spacing:2px;">SET DPM TARGET</div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                            <div>
+                                @{ InfoBox(Icons.Material.Filled.Info, "WHAT IS DPM?",
+                                    "DPM stands for Defects Per Million. It is a quality metric that shows how many units out of every one million produced were found to be defective. " +
+                                    "A lower DPM is better. The DPM Target is the threshold value used to colour-code the DPM indicators on the dashboard — " +
+                                    "results above the target appear red, results below appear green.",
+                                    "#f59e0b"); }
+                                @{ InfoBox(Icons.Material.Filled.TouchApp, "HOW TO CHANGE THE TARGET",
+                                    "Click the target icon (circle with crosshair) in the top-right toolbar. A small popover opens showing a number field. " +
+                                    "Type a new target value (minimum 1, maximum 10,000) and click APPLY. " +
+                                    "The dashboard updates immediately — no page reload required. " +
+                                    "Click CANCEL or click anywhere outside the popover to close it without saving.",
+                                    "#f59e0b"); }
+                            </div>
+                            <div>
+                                <div style="background:#0a1628; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+                                    <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:8px;">CURRENT TARGET DISPLAY</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                        Inside the popover, the current target is always shown at the bottom in amber text (e.g. <span style="color:#f59e0b; font-weight:700;">CURRENT: 800 DPM</span>).
+                                        This acts as a reminder of what the active setting is before you make any changes.
+                                        The default target when the dashboard first loads is <span style="color:#f59e0b; font-weight:700;">800 DPM</span>.
+                                    </div>
+                                </div>
+                                <div style="background:#f59e0b0a; border:1px solid #f59e0b22; border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:8px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Style="color:#f59e0b; font-size:15px; flex-shrink:0; margin-top:1px;" />
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                        The DPM Target is a session setting. It resets to the default (800) each time you relaunch or reconfigure the dashboard.
+                                        If your line has a different standard DPM target, change it right after launching each shift.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Reconfigure *@
+                    <div style="background:#060d1f; border:1px solid #00b4d833; border-radius:12px; padding:14px 18px; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                            <div style="width:30px; height:30px; border-radius:8px; background:#00b4d818; border:1px solid #00b4d833; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <MudIcon Icon="@Icons.Material.Filled.Tune" Style="color:#00b4d8; font-size:16px;" />
+                            </div>
+                            <div style="color:#00b4d8; font-size:10px; font-weight:700; letter-spacing:2px;">RECONFIGURE</div>
+                        </div>
+                        <div style="color:#7ab3cc; font-size:11px; line-height:1.8;">
+                            The Reconfigure button (slider icon) returns you to the configuration screen without closing the browser tab.
+                            Use this when you need to change the <span style="color:#e8f4f8;">product family</span>, <span style="color:#e8f4f8;">shift date</span>,
+                            or <span style="color:#e8f4f8;">FNI planned quantity</span>.
+                            After making changes on the configure screen, click <span style="color:#e8f4f8; font-weight:700;">LAUNCH DASHBOARD</span> to reload all panels with the new settings.
+                            Note: reconfiguring resets the briefing badge and the DPM target back to defaults.
+                        </div>
+                    </div>
+
+                    @* Refresh *@
+                    <div style="background:#060d1f; border:1px solid #00b4d833; border-radius:12px; padding:14px 18px; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                            <div style="width:30px; height:30px; border-radius:8px; background:#00b4d818; border:1px solid #00b4d833; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <MudIcon Icon="@Icons.Material.Filled.Refresh" Style="color:#00b4d8; font-size:16px;" />
+                            </div>
+                            <div style="color:#00b4d8; font-size:10px; font-weight:700; letter-spacing:2px;">REFRESH NOW</div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.8;">
+                                The Refresh button immediately reloads all dashboard data panels — Safety, FNI Yield, FNI Plan vs Actual, and the NCR/CAR Compliance panel.
+                                You do not need to wait for the automatic 120-second countdown.
+                                <br /><br />
+                                The circular countdown arc in the top bar shows how many seconds remain until the next automatic refresh.
+                                The arc shrinks as time passes. When it reaches zero, all panels reload silently in the background.
+                            </div>
+                            <div style="background:#00b4d80a; border:1px solid #00b4d822; border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Info" Style="color:#00b4d8; font-size:15px; flex-shrink:0; margin-top:1px;" />
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                    The live camera feeds (BACKEND – SOMS and Risk & Learning) are not affected by the refresh button — they stream independently and are always live.
+                                    Only the data cards (Safety, FNI, NCR/CAR) reload when you press refresh.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Screen Zoom *@
+                    <div style="background:#060d1f; border:1px solid #00e5c033; border-radius:12px; padding:14px 18px; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                            <div style="width:30px; height:30px; border-radius:8px; background:#00e5c018; border:1px solid #00e5c033; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <MudIcon Icon="@Icons.Material.Filled.ZoomIn" Style="color:#00e5c0; font-size:16px;" />
+                            </div>
+                            <div style="color:#00e5c0; font-size:10px; font-weight:700; letter-spacing:2px;">SCREEN ZOOM</div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                            <div>
+                                @{ InfoBox(Icons.Material.Filled.Info, "WHAT IT DOES",
+                                    "The Screen Zoom button (magnifying glass icon) opens a small panel with two separate zoom sliders — one for the BACKEND – SOMS camera panel and one for the Risk and Learning panel. " +
+                                    "Moving a slider immediately resizes that panel's content in real time. No page reload is needed.",
+                                    "#00e5c0"); }
+                                @{ InfoBox(Icons.Material.Filled.Tune, "HOW TO USE IT",
+                                    "Click the green magnifying glass icon in the top-right toolbar. The zoom panel appears below the button. " +
+                                    "Drag the blue slider (BACKEND – SOMS) left to shrink or right to enlarge the SOMS camera content. " +
+                                    "Drag the amber slider (RISK AND LEARNING) to resize the Risk and Learning panel content. " +
+                                    "The current scale is shown to the right of each slider (e.g. 0.90×). " +
+                                    "Click RESET to restore both panels to the default size (0.90×). Click CLOSE to close the panel.",
+                                    "#00e5c0"); }
+                            </div>
+                            <div>
+                                <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">ZOOM SLIDER REFERENCE</div>
+                                <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+                                    <div style="background:#0a1628; border:1px solid #1a3a5c; border-radius:8px; padding:10px 14px;">
+                                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                                            <div style="width:10px; height:10px; border-radius:50%; background:#00d4ff;"></div>
+                                            <span style="color:#00d4ff; font-size:10px; font-weight:700; letter-spacing:1px;">BACKEND — SOMS</span>
+                                        </div>
+                                        <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">
+                                            Controls the zoom level of the live SOMS bay camera feed. Range: 0.30× (very small) to 2.00× (very large). Default: 0.90×.
+                                        </div>
+                                    </div>
+                                    <div style="background:#0a1628; border:1px solid #1a3a5c; border-radius:8px; padding:10px 14px;">
+                                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                                            <div style="width:10px; height:10px; border-radius:50%; background:#f59e0b;"></div>
+                                            <span style="color:#f59e0b; font-size:10px; font-weight:700; letter-spacing:1px;">RISK AND LEARNING</span>
+                                        </div>
+                                        <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">
+                                            Controls the zoom level of the Risk and Learning embedded panel. Range: 0.30× to 2.00×. Default: 0.90×.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="background:#00e5c00a; border:1px solid #00e5c022; border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:8px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Style="color:#00e5c0; font-size:15px; flex-shrink:0; margin-top:1px;" />
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                        Zoom is a session setting and resets to 0.90× when you reconfigure or reload the page.
+                                        If the camera content appears too large or too small for your screen, adjust the slider until it fits comfortably.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            }
+
+            @* ------------------------------------------
+               LIVE PANELS
+               ------------------------------------------ *@
+            @if (SectionVisible("livepanels"))
+            {
+                <div id="sec-livepanels" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.Videocam, "LIVE PANELS", "BACKEND – SOMS camera and Risk & Learning embedded panel", "#00d4ff"); }
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                        <div>
+                            <div style="background:#060d1f; border:1px solid #00d4ff33; border-radius:12px; padding:14px 18px; margin-bottom:12px;">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                                    <div style="width:30px; height:30px; border-radius:8px; background:#00d4ff18; border:1px solid #00d4ff33; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                        <MudIcon Icon="@Icons.Material.Filled.Videocam" Style="color:#00d4ff; font-size:16px;" />
+                                    </div>
+                                    <div>
+                                        <div style="color:#00d4ff; font-size:10px; font-weight:700; letter-spacing:2px;">BACKEND — SOMS</div>
+                                        <div style="color:#7ab3cc; font-size:9px; letter-spacing:1px; margin-top:1px;">BAY 16B · REAL-TIME MONITOR</div>
+                                    </div>
+                                    <div style="margin-left:auto; display:flex; align-items:center; gap:5px; background:#00d4ff12; border:1px solid #00d4ff28; border-radius:20px; padding:3px 10px;">
+                                        <div style="width:5px; height:5px; border-radius:50%; background:#00d4ff; box-shadow:0 0 6px #00d4ff;"></div>
+                                        <span style="color:#00d4ff; font-size:8px; font-weight:700; letter-spacing:1px;">LIVE</span>
+                                    </div>
+                                </div>
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.8;">
+                                    This panel shows a live video feed from the SOMS (Shop Order Monitoring System) camera focused on Bay 16B — Level 2, P2 area.
+                                    The feed refreshes continuously and requires no interaction.
+                                    <br /><br />
+                                    <span style="color:#e8f4f8; font-weight:600;">Opening the full feed:</span> Click anywhere on the camera panel to open the live feed in a new browser tab at full resolution.
+                                    <br /><br />
+                                    <span style="color:#e8f4f8; font-weight:600;">Adjusting the size:</span> Use the <span style="color:#00e5c0; font-weight:700;">SCREEN ZOOM</span> button in the top toolbar and drag the blue <span style="color:#00d4ff; font-weight:700;">BACKEND – SOMS</span> slider.
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="background:#060d1f; border:1px solid #a78bfa33; border-radius:12px; padding:14px 18px; margin-bottom:12px;">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                                    <div style="width:30px; height:30px; border-radius:8px; background:#a78bfa18; border:1px solid #a78bfa33; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                        <MudIcon Icon="@Icons.Material.Filled.School" Style="color:#a78bfa; font-size:16px;" />
+                                    </div>
+                                    <div style="color:#a78bfa; font-size:10px; font-weight:700; letter-spacing:2px;">RISK AND LEARNING</div>
+                                </div>
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.8;">
+                                    This panel embeds the Risk and Learning system directly inside the dashboard using a secured internal link.
+                                    It displays the latest risk awareness and learning content relevant to the production floor without leaving the dashboard.
+                                    <br /><br />
+                                    <span style="color:#e8f4f8; font-weight:600;">Content:</span> The content shown is managed by the Risk and Learning system team, not by the dashboard. Contact the system owner if the content needs updating.
+                                    <br /><br />
+                                    <span style="color:#e8f4f8; font-weight:600;">Adjusting the size:</span> Use the <span style="color:#00e5c0; font-weight:700;">SCREEN ZOOM</span> button in the top toolbar and drag the amber <span style="color:#f59e0b; font-weight:700;">RISK AND LEARNING</span> slider.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @{ InfoBox(Icons.Material.Filled.Info, "LIVE PANELS ARE NOT AFFECTED BY REFRESH",
+                        "The BACKEND – SOMS camera and the Risk and Learning panel are independent live streams. " +
+                        "Pressing the Refresh button or waiting for the 120-second auto-refresh does not reload these panels — they always show the current live content automatically. " +
+                        "Only the data cards (Safety, FNI, NCR/CAR) are reloaded when you refresh.",
+                        "#00d4ff"); }
+                </div>
+            }
+
+            @* ------------------------------------------
+               BRIEFING
+               ------------------------------------------ *@
+            @if (SectionVisible("briefing"))
+            {
+                <div id="sec-briefing" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.CastForEducation, "DAILY SHIFT BRIEFING", "How to open, read, and confirm the shift briefing", "#22c55e"); }
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                        <div>
+                            @{ InfoBox(Icons.Material.Filled.Info, "WHAT IS THE BRIEFING?",
+                                "The Daily Shift Briefing opens a PDF document that has been prepared by the section owner before the shift. " +
+                                "The PDF contains the official briefing material for the day -- such as safety topics, quality alerts, production targets, or process updates. " +
+                                "During the shift start, the supervisor presents this document to the team and walks through each item. " +
+                                "Operators follow along as the supervisor explains the content based on the PDF.",
+                                "#22c55e"); }
+
+                            @{ InfoBox(Icons.Material.Filled.OpenInNew, "HOW TO OPEN THE BRIEFING",
+                                "Click the BRIEFING button in the toolbar at the bottom of the dashboard screen. " +
+                                "The button shows a megaphone icon. A dialog opens showing the full briefing content for the current shift and date. " +
+                                "You can scroll through the briefing to read all notes and announcements.",
+                                "#22c55e"); }
+
+                            @{ InfoBox(Icons.Material.Filled.CheckCircle, "THE GREEN BADGE -- WHAT IT MEANS",
+                                "Before you open the briefing, the toolbar button has no badge (or a neutral indicator). " +
+                                "Once you open and view the briefing dialog, the button badge turns green. " +
+                                "The green badge is a visual confirmation to supervisors and colleagues on the same screen that the briefing has been checked for this session. " +
+                                "The badge resets each time you launch or relaunch the dashboard, so it must be acknowledged each shift.",
+                                "#22c55e"); }
+                        </div>
+                        <div>
+                            @{ InfoBox(Icons.Material.Filled.EditNote, "WHAT THE BRIEFING CONTAINS",
+                                "The briefing is a PDF file created and maintained by the section owner outside of this dashboard. " +
+                                "The dashboard does not allow editing the briefing content -- it simply opens the existing file for display. " +
+                                "Typical PDF content includes: safety topics, quality hold or alert notices, customer requirements, " +
+                                "production targets, process or equipment updates, and shift handover notes. " +
+                                "Contact your section owner if the briefing content needs to be updated.",
+                                "#22c55e"); }
+
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">STEP-BY-STEP</div>
+
+                            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+                                <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px;">
+                                    <div style="width:20px; height:20px; border-radius:50%; background:#22c55e22; border:1px solid #22c55e44; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">
+                                        <span style="color:#22c55e; font-size:9px; font-weight:700;">1</span>
+                                    </div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">Launch the dashboard from the configure screen. The toolbar appears at the bottom of the screen.</div>
+                                </div>
+                                <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px;">
+                                    <div style="width:20px; height:20px; border-radius:50%; background:#22c55e22; border:1px solid #22c55e44; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">
+                                        <span style="color:#22c55e; font-size:9px; font-weight:700;">2</span>
+                                    </div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">Click the <span style="color:#22c55e; font-weight:700;">BRIEFING</span> button (megaphone icon) in the toolbar. The briefing dialog opens.</div>
+                                </div>
+                                <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px;">
+                                    <div style="width:20px; height:20px; border-radius:50%; background:#22c55e22; border:1px solid #22c55e44; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">
+                                        <span style="color:#22c55e; font-size:9px; font-weight:700;">3</span>
+                                    </div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">Read through all the briefing content. Scroll down if there are multiple items or sections.</div>
+                                </div>
+                                <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:10px 14px; display:flex; align-items:flex-start; gap:10px;">
+                                    <div style="width:20px; height:20px; border-radius:50%; background:#22c55e22; border:1px solid #22c55e44; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">
+                                        <span style="color:#22c55e; font-size:9px; font-weight:700;">4</span>
+                                    </div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">Close the dialog. The BRIEFING button badge turns <span style="color:#22c55e; font-weight:700;">green</span> to confirm you have viewed it for this session.</div>
+                                </div>
+                            </div>
+
+                            <div style="background:#22c55e0a; border:1px solid #22c55e22; border-radius:10px; padding:12px 14px; display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Style="color:#22c55e; font-size:15px; flex-shrink:0; margin-top:1px;" />
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                    The green badge is a session indicator only -- it does not write anything to the database or submit a formal acknowledgement record.
+                                    It is a quick visual cue for the shift team to confirm the briefing has been seen on this screen during the current session.
+                                    If you relaunch the dashboard (e.g. after a reconfigure), the badge resets and you should check the briefing again.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ------------------------------------------
+               SAFETY CARD
+               ------------------------------------------ *@
+            @if (SectionVisible("safety"))
+            {
+                <div id="sec-safety" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.HealthAndSafety, "SAFETY CARD", "Fiscal year incident tracking -- amber accent", "#f59e0b"); }
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                        <div>
+                            @{ InfoBox(Icons.Material.Filled.Storage, "WHERE THE DATA COMES FROM",
+                                "Safety incident records are stored in the LCC database in a table called 'Safety Incidents'. " +
+                                "When the dashboard loads, it fetches all rows where the incident date falls within the current fiscal year. " +
+                                "The fiscal year runs from September 1 through August 31 each year. " +
+                                "For example, if today is June 2025, the system loads all incidents from September 1, 2024 to today.",
+                                "#f59e0b"); }
+
+                            @{ InfoBox(Icons.Material.Filled.FilterAlt, "HOW THE DATA IS FILTERED",
+                                "No shift, product family, or customer filter is applied to safety data -- it shows incidents for the entire site. " +
+                                "The only filter is the fiscal year date range. Every record with an incident timestamp on or after September 1 of the current fiscal year is included.",
+                                "#f59e0b"); }
+
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px; margin-top:4px;">BADGE STATUS EXPLAINED</div>
+                            @{ ThresholdRow("* ALL CLEAR", "90 or more days have passed since the last incident. The team is maintaining a strong safety streak.", "#22c55e"); }
+                            @{ ThresholdRow("* MONITOR",   "Between 30 and 89 days since the last incident. Good progress but not yet at the 90-day milestone.", "#f59e0b"); }
+                            @{ ThresholdRow("* ALERT",     "Fewer than 30 days since the last incident. Recent incident -- attention and follow-up required.", "#ff3b3b"); }
+
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px; margin-top:12px;">MILESTONE PROGRESS BAR</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.8;">
+                                The horizontal bar at the centre of the card tracks progress through four milestone targets:
+                                <span style="color:#f59e0b;">30 days -> 90 days -> 180 days -> 365 days</span>.
+                                Each dot on the bar lights up solid when that milestone is reached.
+                                The bar itself fills from left to right, where the full width represents 365 days.
+                                A hint below the bar tells you how many days remain until the next milestone.
+                            </div>
+                        </div>
+                        <div>
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">HOW EACH NUMBER IS CALCULATED</div>
+
+                            @{ CalcBox("Days Without Incident",
+                                "Today's date  ->  Date of the last recorded incident",
+                                "The system finds the most recent incident in the fiscal year data and counts the number of calendar days between that date and today. " +
+                                "If there are zero incidents this fiscal year, the counter instead shows how many days have passed since September 1 (the fiscal year start date). " +
+                                "Example: last incident was March 15 and today is June 14 -> 91 days without incident.",
+                                "#f59e0b"); }
+
+                            @{ CalcBox("FY Incidents (total count)",
+                                "Count of all incident rows with a date = September 1",
+                                "Every incident that happened from September 1 of the current fiscal year up to today is counted. " +
+                                "This total does not filter by type, severity, or recordable status -- all incident records are included.",
+                                "#f59e0b"); }
+
+                            @{ CalcBox("Last 30 Days",
+                                "Count of incidents where the date is within the past 30 days",
+                                "A rolling window: incidents that occurred from exactly 30 days ago up to today. " +
+                                "This number updates daily so it always reflects the most recent month of activity.",
+                                "#f59e0b"); }
+
+                            @{ CalcBox("Trend (vs previous 30 days)",
+                                "Last-30-days count  ->  previous-30-days count",
+                                "The system also counts incidents from 31 to 60 days ago (the prior period). " +
+                                "If recent 30 days had more incidents -> red arrow (worsening). " +
+                                "If fewer -> green arrow (improving). If the same -> grey flat arrow (stable). " +
+                                "Example: 0 recent vs 1 previous = -1 -> green improving arrow.",
+                                "#f59e0b"); }
+
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-top:4px;">
+                                <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:8px;">* WORKED EXAMPLE</div>
+                                @{ ExRow("Fiscal year start",        "Sep 1, 2024",   "#e8f4f8"); }
+                                @{ ExRow("Last incident date",        "Mar 15, 2025",  "#f59e0b"); }
+                                @{ ExRow("Today",                     "Jun 14, 2025",  "#e8f4f8"); }
+                                @{ ExRow("Days without incident",     "91 days",       "#22c55e"); }
+                                @{ ExRow("Badge",                     "ALL CLEAR --",   "#22c55e"); }
+                                @{ ExRow("Total FY incidents",        "2",             "#f59e0b"); }
+                                @{ ExRow("Last 30 days incidents",    "0",             "#22c55e"); }
+                                @{ ExRow("Previous 30 days",         "1",             "#f59e0b"); }
+                                @{ ExRow("Trend",                    "-1 (IMPROVING)","#22c55e"); }
+                            </div>
+
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-top:10px;">
+                                <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:6px;">SAFETY DETAILS DRILL-DOWN</div>
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                    Click the <span style="color:#f59e0b; font-weight:700;">SAFETY DETAILS</span> button at the bottom of the card
+                                    to open a full table of every incident in the fiscal year. You can search across all columns,
+                                    sort by any column, and export the list to Excel or CSV for offline review.
+                                    Columns include: incident date, site, segment, sector, type, severity, injury classification, recordable flag, lost-time days, and more.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ------------------------------------------
+               FNI YIELD CARD
+               ------------------------------------------ *@
+            @if (SectionVisible("fni"))
+            {
+                <div id="sec-fni" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.Speed, "FNI YIELD CARD", "Final Numeric Inspection -- Week to Date pass rate -- cyan accent", "#00d4ff"); }
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                        <div>
+                            @{ InfoBox(Icons.Material.Filled.Storage, "WHERE THE DATA COMES FROM",
+                                "FNI data comes from the MES (Manufacturing Execution System) database. " +
+                                "The system looks at the main test results table and filters it down to only the rows that belong to the FNI inspection step. " +
+                                "It also cross-references a route-steps table to confirm the step is specifically an FNI-type step, " +
+                                "and a customer table to make sure the records belong to your selected customer.",
+                                "#00d4ff"); }
+
+                            @{ InfoBox(Icons.Material.Filled.FilterAlt, "HOW THE DATA IS FILTERED",
+                                "Four filters are applied together to find the right records:\n" +
+                                "1. Customer -- only records for your selected customer (e.g. Motorola) are included.\n" +
+                                "2. Product Family -- only the family you chose on the configure screen.\n" +
+                                "3. Route Step = FNI -- only test records where the inspection step is the Final Numeric Inspection step. Other steps like SMT or ICT are excluded.\n" +
+                                "4. Date range = this week -- only records from Monday of the current calendar week through to today are counted. The window resets every Monday morning.",
+                                "#00d4ff"); }
+
+                            @{ InfoBox(Icons.Material.Filled.Info, "WHAT 'TEST LOOP = 1' MEANS",
+                                "The FNI query also filters to only first-loop test runs. A unit may be tested more than once if it fails and is re-submitted. " +
+                                "Loop = 1 means the very first time the unit went through FNI, not a re-test. " +
+                                "This ensures the yield reflects genuine first-pass quality, not the result after repair.",
+                                "#00d4ff"); }
+
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px; margin-top:4px;">BADGE STATUS EXPLAINED</div>
+                            @{ ThresholdRow("* ON TARGET", "FNI Yield is 98% or above. First-pass quality is meeting the standard.", "#22c55e"); }
+                            @{ ThresholdRow("* MONITOR",   "FNI Yield is between 90% and 97.99%. Quality needs attention.", "#f59e0b"); }
+                            @{ ThresholdRow("* AT RISK",   "FNI Yield is below 90%. Significant quality issue -- escalation advised.", "#ff3b3b"); }
+                        </div>
+                        <div>
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">HOW EACH NUMBER IS CALCULATED</div>
+
+                            @{ CalcBox("Total Tested (WTD)",
+                                "Count of all FNI step records from Monday to today",
+                                "Every unit that went through the FNI inspection step from the start of this calendar week (Monday) up to right now is counted here. " +
+                                "This is your denominator -- the total pool of units inspected at FNI this week.",
+                                "#00d4ff"); }
+
+                            @{ CalcBox("Pass Count",
+                                "Count where the FNI test result = 'PASS'",
+                                "Only units whose FNI result is exactly 'PASS' are counted. " +
+                                "Units that resulted in FAIL, ABORT, or any other outcome are not counted as a pass. " +
+                                "This is your numerator.",
+                                "#00d4ff"); }
+
+                            @{ CalcBox("Fail Count",
+                                "Total Tested  ->  Pass Count",
+                                "The number of units that did not achieve a PASS result at FNI this week. Includes all non-passing outcomes.",
+                                "#00d4ff"); }
+
+                            @{ CalcBox("FNI Yield %",
+                                "(Pass Count / Total Tested) -- 100  -- shown to 2 decimal places",
+                                "The percentage of all FNI-tested units this week that passed on their first run through the inspection step. " +
+                                "Displayed to two decimal places (e.g. 99.03%) so small changes are visible. " +
+                                "This is the headline number shown in the half-circle gauge.",
+                                "#00d4ff"); }
+
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-top:4px;">
+                                <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:8px;">* WORKED EXAMPLE (Monday to Thursday)</div>
+                                @{ ExRow("Customer",              "Motorola",  "#e8f4f8"); }
+                                @{ ExRow("Family",                "G85",       "#e8f4f8"); }
+                                @{ ExRow("Week start",            "Mon Jun 9", "#e8f4f8"); }
+                                @{ ExRow("Today",                 "Thu Jun 12","#e8f4f8"); }
+                                @{ ExRow("Total FNI tested (WTD)","1,240",     "#e8f4f8"); }
+                                @{ ExRow("Pass",                  "1,228",     "#22c55e"); }
+                                @{ ExRow("Fail",                  "12",        "#ff3b3b"); }
+                                @{ ExRow("FNI Yield",             "99.03%",    "#22c55e"); }
+                                @{ ExRow("Badge",                 "ON TARGET", "#22c55e"); }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ------------------------------------------
+               FNI PLANNED VS ACTUAL
+               ------------------------------------------ *@
+            @if (SectionVisible("fniplan"))
+            {
+                <div id="sec-fniplan" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.Speed, "FNI PLANNED VS ACTUAL", "Week-to-date FNI output against your configured weekly target -- purple accent", "#a78bfa"); }
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                        <div>
+                            @{ InfoBox(Icons.Material.Filled.Storage, "WHERE THE DATA COMES FROM",
+                                "This card uses the exact same FNI dataset as the FNI Yield card -- the same customer, family, route step, and week-to-date date range. " +
+                                "No additional database query is made. The difference is what this card does with that data: instead of calculating a yield percentage, " +
+                                "it compares how many units have passed FNI this week against your planned weekly target quantity.",
+                                "#a78bfa"); }
+
+                            @{ InfoBox(Icons.Material.Filled.Settings, "WHERE THE PLANNED QTY COMES FROM",
+                                "The 'FNI Planned Qty' number is the value you typed into the 'FNI Planned Qty (today)' field on the configure screen before launching the dashboard. " +
+                                "Example: if you entered 2000, the gauge expects 2000 FNI passes by end of week. " +
+                                "You can change this number by going back to configure (press Reconfigure) and relaunching.",
+                                "#a78bfa"); }
+
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px; margin-top:4px;">BADGE STATUS EXPLAINED</div>
+                            @{ ThresholdRow("* ON TARGET", "Actual pass count is 100% or more of the FNI planned quantity for the week.", "#22c55e"); }
+                            @{ ThresholdRow("* MONITOR",   "Actual pass count is between 80% and 99% of the FNI planned quantity.", "#f59e0b"); }
+                            @{ ThresholdRow("* AT RISK",   "Actual pass count is below 80% of the FNI planned quantity -- production is significantly behind plan.", "#ff3b3b"); }
+                        </div>
+                        <div>
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">HOW EACH NUMBER IS CALCULATED</div>
+
+                            @{ CalcBox("PLANNED (target)",
+                                "The FNI Planned Qty you entered on the configure screen",
+                                "This is your weekly production target for the FNI step. It does not change until you reconfigure the dashboard. " +
+                                "It appears as the denominator in the gauge and as the right-hand number in the stat strip.",
+                                "#a78bfa"); }
+
+                            @{ CalcBox("ACTUAL (pass count)",
+                                "Count of FNI records with result = 'PASS' from Monday to today",
+                                "The same Pass Count used by the FNI Yield card -- units that cleared FNI on their first run this week. " +
+                                "As production continues through the week, this number grows.",
+                                "#a78bfa"); }
+
+                            @{ CalcBox("% PLAN",
+                                "(Actual Pass Count / Planned Qty) -- 100",
+                                "The plan attainment percentage. A value of 100% means actual output exactly matches the target. " +
+                                "Above 100% means the line is running ahead of plan. " +
+                                "Below 100% means there is a gap that needs to be recovered. " +
+                                "Shown to one decimal place (e.g. 87.5%).",
+                                "#a78bfa"); }
+
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-top:4px;">
+                                <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:8px;">* WORKED EXAMPLE (Wednesday mid-week)</div>
+                                @{ ExRow("FNI Planned Qty (weekly)",  "2,000",    "#e8f4f8"); }
+                                @{ ExRow("FNI Pass count so far (WTD)","1,450",   "#22c55e"); }
+                                @{ ExRow("% Plan attainment",         "72.5%",    "#ff3b3b"); }
+                                @{ ExRow("Badge",                     "AT RISK",  "#ff3b3b"); }
+                                @{ ExRow("Remaining to hit target",   "550 units","#f59e0b"); }
+                            </div>
+
+                            <div style="background:#a78bfa0a; border:1px solid #a78bfa22; border-radius:10px; padding:12px 14px; margin-top:10px; display:flex; align-items:flex-start; gap:8px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Style="color:#a78bfa; font-size:15px; flex-shrink:0; margin-top:1px;" />
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                    Because the data window is week-to-date (Monday -> today), the ACTUAL number on Wednesday is naturally lower than it will be on Friday.
+                                    An AT RISK badge early in the week is normal if the line runs steady. Check the badge again closer to end-of-week for a meaningful assessment.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ------------------------------------------
+               NCR / CAR COMPLIANCE
+               ------------------------------------------ *@
+            @if (SectionVisible("ncr"))
+            {
+                <div id="sec-ncr" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.AssignmentLate, "NCR / CAR COMPLIANCE PANEL", "Non-Conformance & Corrective Action tracking -- purple accent", "#a78bfa"); }
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                        <div>
+                            @{ InfoBox(Icons.Material.Filled.Storage, "WHERE THE DATA COMES FROM",
+                                "The compliance panel loads three separate record types from the LCC database: " +
+                                "NCR (Non-Conformance Reports), CAR (Corrective Action Reports via the JCAS system), and overview groupings. " +
+                                "NCR records are grouped by problem category (e.g. 'Workmanship', 'ESD', 'Component'). " +
+                                "CAR records are grouped by their CAR category. Each group card shows the count of open and closed items in that category.",
+                                "#a78bfa"); }
+
+                            @{ InfoBox(Icons.Material.Filled.FilterAlt, "HOW THE DATA IS FILTERED",
+                                "The compliance panel is scoped to the current production bay (process area). " +
+                                "It only shows NCR and CAR records that belong to your active bay. " +
+                                "There is no date filter applied -- it shows all open records regardless of how old they are, " +
+                                "plus closed records so you can see the full picture for your bay.",
+                                "#a78bfa"); }
+
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px; margin-top:4px;">WHAT 'OPEN' AND 'CLOSED' MEAN</div>
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-bottom:8px;">
+                                <div style="color:#ffaa00; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:6px;">OPEN</div>
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                    An NCR or CAR is still open when it has not been formally closed in the system
+                                    AND the team has not yet completed the D7 step of the 8D process.
+                                    Open records require active follow-up from the responsible owner.
+                                </div>
+                            </div>
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-bottom:8px;">
+                                <div style="color:#22c55e; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:6px;">CLOSED</div>
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                    A record is counted as closed when <em>either</em> the status is set to "Closed" in the system,
+                                    <em>or</em> when Discipline 7 (Preventive Action) of the 8D process has been completed --
+                                    whichever happens first. You do not need both conditions; one is enough.
+                                </div>
+                            </div>
+
+                            @{ InfoBox(Icons.Material.Filled.Help, "WHAT IS D7 (DISCIPLINE 7)?",
+                                "The 8D (Eight Disciplines) is a structured problem-solving method. Discipline 7 is the 'Preventive Action' step -- " +
+                                "where the team puts permanent fixes in place to stop the same problem from happening again anywhere in the organisation. " +
+                                "Completing D7 means the root cause has been fully addressed, so the system treats the record as resolved even if the formal status field has not yet been updated.",
+                                "#a78bfa"); }
+                        </div>
+                        <div>
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">HOW EACH NUMBER IS CALCULATED</div>
+
+                            @{ CalcBox("Total (per category group)",
+                                "Count of all NCR or CAR records in that category for your bay",
+                                "Every record in that category -- whether open or closed -- is counted. This is the denominator for the compliance percentage.",
+                                "#a78bfa"); }
+
+                            @{ CalcBox("Open Count",
+                                "Count of records that are neither closed nor D7-complete",
+                                "Records that still require action. A high open count in a category signals a recurring quality problem area that needs attention.",
+                                "#a78bfa"); }
+
+                            @{ CalcBox("Closed Count",
+                                "Count where status = 'Closed'  OR  D7 step is complete",
+                                "Records that have been fully resolved by either formal closure or completion of the preventive action step.",
+                                "#a78bfa"); }
+
+                            @{ CalcBox("Age (days open)",
+                                "Today's date  ->  the date the record was created",
+                                "How long the record has been waiting for resolution. Records open more than 30 days appear in amber. More than 60 days appear in red.",
+                                "#a78bfa"); }
+
+                            @{ CalcBox("Compliance %",
+                                "(Closed / Total) -- 100",
+                                "The closure rate for that category. A higher percentage means more records have been resolved. 100% means everything in that category is closed.",
+                                "#a78bfa"); }
+
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-top:4px;">
+                                <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:8px;">* WORKED EXAMPLE -- NCR Category 'Workmanship'</div>
+                                @{ ExRow("Total NCRs in category",  "18",    "#e8f4f8"); }
+                                @{ ExRow("Closed",                  "13",    "#22c55e"); }
+                                @{ ExRow("Open",                    "5",     "#ffaa00"); }
+                                @{ ExRow("Compliance",              "72.2%", "#f59e0b"); }
+                                @{ ExRow("Oldest open record",      "47 days","#ff3b3b"); }
+                            </div>
+
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-top:10px;">
+                                <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:6px;">DRILL-DOWN DIALOGS</div>
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                    Click any category card to open a detailed table of all records in that category.
+                                    The dialog shows a KPI strip at the top (Total / Open / Closed / Overdue) and a
+                                    full searchable table with columns: NCR/CAR No, Type, Category, Status, Bay, Department,
+                                    CAR Owner, Issued By, Issue Date, Closure Status, and Problem Statement.
+                                    Type in the search box to filter across all columns at once.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ------------------------------------------
+               GAUGES & VISUALS
+               ------------------------------------------ *@
+            @if (SectionVisible("gauges"))
+            {
+                <div id="sec-gauges" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.DonutSmall, "GAUGES & VISUAL INDICATORS", "Understanding the on-screen charts, colors, and trend arrows", "#00e5c0"); }
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+                        <div>
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">HALF-CIRCLE GAUGE</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.8; margin-bottom:12px;">
+                                The FNI cards each show a half-circle gauge. Here is how to read it:
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+                                <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:10px 14px;">
+                                    <div style="color:#00d4ff; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:4px;">FNI YIELD GAUGE</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">
+                                        The arc fills from left to right as yield increases. 0% = empty arc, 100% = full arc.
+                                        The number in the centre is the exact FNI yield percentage to two decimal places (e.g. 99.03%).
+                                        Arc color matches the status: green = 98%, amber 90--97.99%, red below 90%.
+                                    </div>
+                                </div>
+                                <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:10px 14px;">
+                                    <div style="color:#a78bfa; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:4px;">FNI PLAN VS ACTUAL GAUGE</div>
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.6;">
+                                        The arc fills based on how many units have passed vs the planned target.
+                                        The number in the centre is the raw pass count (not a percentage).
+                                        The label below reads "X ACTUAL / Y TARGET".
+                                        Arc turns green when actual = planned.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">SAFETY STREAK PROGRESS BAR</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.8;">
+                                The horizontal progress bar in the Safety card works differently from a gauge.
+                                It represents a journey from 0 to 365 days without incident.
+                                The large number above it (e.g. "91") is the current day count.
+                                The bar fills proportionally -- 91 days fills roughly one-quarter of the full bar.
+                                Milestone dots at 30, 90, 180, and 365 days light up solid when you reach them.
+                            </div>
+                        </div>
+                        <div>
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px;">STATUS BADGE COLORS -- CONSISTENT ACROSS ALL CARDS</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.8; margin-bottom:10px;">
+                                Every card uses the same three-tier color system for its badge in the top-right corner:
+                            </div>
+                            @{ ThresholdRow("* ON TARGET / ALL CLEAR", "The metric meets or exceeds its target. No action needed.", "#22c55e"); }
+                            @{ ThresholdRow("* MONITOR",               "The metric is below target but not yet critical. Keep watching.", "#f59e0b"); }
+                            @{ ThresholdRow("* AT RISK / ALERT",       "The metric is significantly below target or a recent event has occurred. Take action.", "#ff3b3b"); }
+
+                            <div style="color:#e8f4f8; font-size:11px; font-weight:700; margin-bottom:8px; margin-top:14px;">SAFETY TREND ARROWS</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.8; margin-bottom:8px;">
+                                On the Safety card, a small arrow icon sits next to the 'Last 30 Days' count:
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <div style="display:flex; align-items:center; gap:10px; background:#060d1f; border:1px solid #1a3a5c; border-radius:8px; padding:8px 12px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Style="color:#22c55e; font-size:20px; flex-shrink:0;" />
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">
+                                        <span style="color:#22c55e; font-weight:700;">Green down arrow</span> -- fewer incidents this month than last month. Safety is improving.
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:10px; background:#060d1f; border:1px solid #1a3a5c; border-radius:8px; padding:8px 12px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.TrendingFlat" Style="color:#7ab3cc; font-size:20px; flex-shrink:0;" />
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">
+                                        <span style="color:#e8f4f8; font-weight:700;">Grey flat arrow</span> -- same number of incidents as last month. Situation is stable.
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:10px; background:#060d1f; border:1px solid #1a3a5c; border-radius:8px; padding:8px 12px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Style="color:#ff3b3b; font-size:20px; flex-shrink:0;" />
+                                    <div style="color:#7ab3cc; font-size:11px; line-height:1.5;">
+                                        <span style="color:#ff3b3b; font-weight:700;">Red up arrow</span> -- more incidents this month than last month. Situation is worsening.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="background:#060d1f; border:1px solid #1a3a5c; border-radius:10px; padding:12px 14px; margin-top:12px;">
+                                <div style="color:#e8f4f8; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:6px;">AUTO-REFRESH INDICATOR</div>
+                                <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                    A countdown timer in the toolbar shows how many seconds remain until the next automatic refresh.
+                                    When it reaches zero, all panels silently reload in the background without disrupting your view.
+                                    You can trigger an immediate refresh at any time without waiting for the countdown.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ------------------------------------------
+               DRILL-DOWN DIALOGS
+               ------------------------------------------ *@
+            @if (SectionVisible("drilldown"))
+            {
+                <div id="sec-drilldown" style="margin-bottom:28px;">
+                    @{ GuideHeader(Icons.Material.Filled.OpenInFull, "DRILL-DOWN DETAIL DIALOGS", "How to explore individual records behind each card", "#00e5c0"); }
+
+                    <div style="color:#7ab3cc; font-size:12px; line-height:1.8; margin-bottom:14px;">
+                        Every card has a button at the bottom that opens a full-screen detail dialog. These dialogs let you look at the individual records behind the summary numbers.
+                        All dialogs share the same layout: a <span style="color:#e8f4f8;">header</span> showing the card title and record count,
+                        a <span style="color:#e8f4f8;">KPI strip</span> with total / open / closed / overdue counts,
+                        a <span style="color:#e8f4f8;">search box</span> to filter across all columns at once, and a
+                        <span style="color:#e8f4f8;">data table</span> with sortable columns.
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:14px;">
+                        <div style="background:#060d1f; border:1px solid #f59e0b33; border-radius:10px; padding:12px 14px;">
+                            <div style="color:#f59e0b; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:8px;">SAFETY INCIDENTS</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                Button: <span style="color:#e8f4f8;">SAFETY DETAILS</span><br />
+                                Shows all incidents for the fiscal year. Columns include: Safety No., Incident Date, Site, Segment, Sector, Region, Type, Title, Status, Severity, Injury/Illness Type, Classification, Direct Cause, Recordable (yes/no), High Potential (yes/no), Lost Time Days, Restriction Days, CAPA/IP No., and Created date.
+                                You can export to <span style="color:#00ff88;">Excel</span> or <span style="color:#00d4ff;">CSV</span>.
+                            </div>
+                        </div>
+                        <div style="background:#060d1f; border:1px solid #00d4ff33; border-radius:10px; padding:12px 14px;">
+                            <div style="color:#00d4ff; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:8px;">FNI YIELD / PLAN VS ACTUAL</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                Button: <span style="color:#e8f4f8;">VIEW DETAILS</span><br />
+                                Both FNI cards share the same drill-down. Shows each individual unit that went through FNI this week with its result (PASS/FAIL), test timestamp, serial number, and other MES test record details.
+                                Useful for investigating which specific units failed FNI.
+                            </div>
+                        </div>
+                        <div style="background:#060d1f; border:1px solid #a78bfa33; border-radius:10px; padding:12px 14px;">
+                            <div style="color:#a78bfa; font-size:10px; font-weight:700; letter-spacing:1px; margin-bottom:8px;">NCR / CAR RECORDS</div>
+                            <div style="color:#7ab3cc; font-size:11px; line-height:1.7;">
+                                Button: <span style="color:#e8f4f8;">Click any category card</span><br />
+                                Opens a dialog for that specific NCR or CAR category. Columns include: Record No., Type, Category, Status badge, Bay, Department, CAR Owner, Issued By, Issue Date, Closure Status, and Problem Statement.
+                                Search box filters all columns at once as you type.
+                            </div>
+                        </div>
+                    </div>
+
+                    @{ InfoBox(Icons.Material.Filled.Lightbulb, "SEARCH TIP FOR DRILL-DOWN DIALOGS",
+                        "The search box in each dialog searches across all visible columns simultaneously. " +
+                        "You do not need to know which column a value is in -- just type it and the table filters instantly. " +
+                        "For example, typing 'ESD' in the NCR dialog will show only rows where ESD appears in any column (category, problem, status, etc.). " +
+                        "Click the X button in the search box to clear the filter and see all records again.",
+                        "#00e5c0"); }
+                </div>
+            }
+
+            @* ---* Footer ---* *@
+            <div style="text-align:center; padding:16px 0 4px; color:#3d6b8a;
+                        font-size:10px; letter-spacing:2px; border-top:1px solid #1a3a5c22;">
+                LINE CONTROL CENTER -- BACKEND v3.0
+            </div>
+
+        </div>@* end content pane *@
+
+    </div>@* end body *@
+
+</div>@* end root *@
+
+<style>
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #060d1f; }
+    ::-webkit-scrollbar-thumb { background: #1a3a5c; border-radius: 4px; }
+</style>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private string _searchText    = string.Empty;
+    private string _activeSection = "intro";
+
+    private record SectionDef(string Id, string Icon, string Title, string Color, string[] Keywords);
+
+    private readonly List<SectionDef> _sections =
+    [
+        new("intro",     Icons.Material.Filled.Info,             "Overview",             "#00b4d8", ["overview","about","intro","dashboard","mes","lcc","what","source"]),
+        new("howto",     Icons.Material.Filled.Tune,             "How to Use",           "#00b4d8", ["how","use","configure","launch","toolbar","refresh","planned","shift date","feedback","step"]),
+        new("topbar",    Icons.Material.Filled.Dashboard,        "Top Bar Controls",     "#00e5c0", ["top bar","appbar","toolbar","dpm","target","refresh","zoom","screen zoom","reconfigure","settings","button"]),
+        new("briefing",  Icons.Material.Filled.CastForEducation, "Briefing",             "#22c55e", ["briefing","shift","daily","supervisor","badge","green","viewed","confirm","message","note","announcement"]),
+        new("safety",    Icons.Material.Filled.HealthAndSafety,  "Safety Card",          "#f59e0b", ["safety","incident","days","fiscal","milestone","recordable","trend","all clear","monitor","alert","lcc","sep","aug"]),
+        new("fni",       Icons.Material.Filled.Speed,            "FNI Yield",            "#00d4ff", ["fni","final","numeric","inspection","wtd","week","route","pass","fail","yield","loop","mes","monday"]),
+        new("fniplan",   Icons.Material.Filled.Speed,            "FNI Plan vs Actual",   "#a78bfa", ["fni","planned","actual","target","plan","attainment","weekly","qty","purple","gap"]),
+        new("ncr",       Icons.Material.Filled.AssignmentLate,   "NCR / CAR",            "#a78bfa", ["ncr","car","jcas","compliance","corrective","non-conformance","d7","closed","open","age","bay","category","8d"]),
+        new("livepanels",Icons.Material.Filled.Videocam,         "Live Panels",          "#00d4ff", ["live","camera","soms","backend","bay","iframe","risk","learning","zoom","scale","feed","stream"]),
+        new("gauges",    Icons.Material.Filled.DonutSmall,       "Gauges & Visuals",     "#00e5c0", ["gauge","chart","visual","half circle","badge","color","trend","arrow","status","arc","countdown"]),
+        new("drilldown", Icons.Material.Filled.OpenInFull,       "Drill-Down Dialogs",   "#00e5c0", ["drill","detail","dialog","search","export","excel","csv","table","column","filter","records"]),
+    ];
+
+    private void SetSection(string id) => _activeSection = id;
+
+    private bool SectionVisible(string id)
+    {
+        if (string.IsNullOrWhiteSpace(_searchText)) return _activeSection == id;
+        var sec = _sections.FirstOrDefault(s => s.Id == id);
+        return sec is not null &&
+               sec.Keywords.Any(k => k.Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void Close() => MudDialog.Close();
+}

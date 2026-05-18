@@ -1,0 +1,285 @@
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.UI.Models
+@using MudBlazor
+@inject LineControlCenter.Application.Interfaces.IEmailReportService EmailReportService
+@inject ISnackbar Snackbar
+
+<MudDialog Style="background:#060d1f; border-radius:20px; overflow:hidden;">
+    <DialogContent>
+        <div style="display:flex; flex-direction:column; height:80vh; max-height:80vh;">
+
+            @* ── Fixed Header ── *@
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:20px 28px 16px; flex-shrink:0;
+                        background:linear-gradient(135deg,#0d1a2e 0%,#060d1f 100%);
+                        border-bottom:1px solid #0d2137;">
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div style="width:42px; height:42px; border-radius:12px;
+                                background:linear-gradient(135deg,@(_accentColor)20,@(_accentColor)08);
+                                border:1px solid @(_accentColor)44;
+                                display:flex; align-items:center; justify-content:center;">
+                        <MudIcon Icon="@_sectionIcon" Style="@($"color:{_accentColor}; font-size:22px;")" />
+                    </div>
+                    <div>
+                        <div style="color:@_accentColor; font-family:'Orbitron',sans-serif;
+                                    font-size:14px; font-weight:800; letter-spacing:3px; margin-bottom:3px;">
+                            @Group.SectionType &nbsp;·&nbsp; @Group.GroupTitle
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="background:@(_accentColor)15; border:1px solid @(_accentColor)30;
+                                         color:@_accentColor; font-size:10px; letter-spacing:1px;
+                                         padding:2px 10px; border-radius:20px; font-weight:600;">
+                                @Group.Count RECORDS
+                            </span>
+                            <span style="color:@Group.CountColor; font-size:10px; font-weight:600;">
+                                @Group.OpenCount OPEN
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <MudTooltip Text="Send Report by Email" Placement="Placement.Bottom">
+                        <MudIconButton Icon="@Icons.Material.Filled.Email"
+                                       Size="MudSize.Small"
+                                       Style="@($"color:{_accentColor}; background:{(_showEmailPanel ? _accentColor + "22" : "#1a2a3e")}; border:1px solid {(_showEmailPanel ? _accentColor + "66" : "#2a3a50")}; border-radius:10px; width:36px; height:36px;")"
+                                       OnClick="() => _showEmailPanel = !_showEmailPanel" />
+                    </MudTooltip>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Size="MudSize.Small"
+                                   Style="color:#e0eaf8; background:#1a2a3e; border:1px solid #2a3a50;
+                                          border-radius:10px; width:36px; height:36px;"
+                                   OnClick="Cancel" />
+                </div>
+            </div>
+
+            @* ── Email compose panel ── *@
+            @if (_showEmailPanel)
+            {
+                <div style="@($"padding:14px 28px; background:#070f1e; border-bottom:1px solid {_accentColor}22; flex-shrink:0;")">
+                    <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:200px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">TO (comma or semicolon separated)</div>
+                            <MudTextField @bind-Value="_emailTo" Placeholder="user@example.com"
+                                          Variant="MudBlazor.Variant.Outlined" Margin="Margin.Dense"
+                                          Style="background:#0a1628;" Disabled="@_sendingEmail" />
+                        </div>
+                        <div style="flex:2; min-width:200px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">NOTE (optional)</div>
+                            <MudTextField @bind-Value="_emailNote" Placeholder="Add a note..."
+                                          Variant="MudBlazor.Variant.Outlined" Margin="Margin.Dense"
+                                          Style="background:#0a1628;" Disabled="@_sendingEmail" />
+                        </div>
+                        <MudButton Variant="MudBlazor.Variant.Filled"
+                                   Style="@($"background:{_accentColor}; color:#fff; border-radius:10px; height:40px; min-width:140px; font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:1px;")"
+                                   OnClick="SendEmailReportAsync"
+                                   Disabled="@(_sendingEmail || string.IsNullOrWhiteSpace(_emailTo))">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                @if (_sendingEmail)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:16px; height:16px; color:#fff;" />
+                                    <span>SENDING...</span>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Send" Style="font-size:16px;" />
+                                    <span>SEND REPORT</span>
+                                }
+                            </div>
+                        </MudButton>
+                    </div>
+                </div>
+            }
+
+            @* ── KPI Strip ── *@
+            <div style="display:flex; gap:8px; padding:14px 28px 0; flex-shrink:0;">
+                @{
+                    var closedCount  = Group.Items.Count(x =>
+                        x.Status?.Equals("Closed Completed",    StringComparison.OrdinalIgnoreCase) == true ||
+                        x.Status?.Equals("Closed-Cancellation", StringComparison.OrdinalIgnoreCase) == true);
+                    var overdueCount = Group.Items.Count(x =>
+                        x.Status?.Equals("Closed Completed",    StringComparison.OrdinalIgnoreCase) != true &&
+                        x.Status?.Equals("Closed-Cancellation", StringComparison.OrdinalIgnoreCase) != true &&
+                        !string.IsNullOrWhiteSpace(x.ClosureAging));
+                    var kpis = new (string Icon, string Label, string Value, string Color)[]
+                    {
+                        (Icons.Material.Filled.Assignment,    "TOTAL",   Group.Count.ToString(),        "#00d4ff"),
+                        (Icons.Material.Filled.LockOpen,      "OPEN",    Group.OpenCount.ToString(),    Group.OpenCount  > 0 ? "#ffaa00" : "#00ff88"),
+                        (Icons.Material.Filled.CheckCircle,   "CLOSED",  closedCount.ToString(),        "#00ff88"),
+                        (Icons.Material.Filled.HourglassEmpty,"OVERDUE", overdueCount.ToString(),       overdueCount > 0 ? "#ff4444" : "#334455"),
+                    };
+                }
+                @foreach (var k in kpis)
+                {
+                    <div style="flex:1; background:#0b1422; border:1px solid #1a3a5c;
+                                border-radius:10px; padding:10px 14px; position:relative; overflow:hidden;">
+                        <div style="position:absolute; top:0; left:0; right:0; height:1.5px;
+                                    background:linear-gradient(90deg,transparent,@(k.Color),transparent); opacity:0.6;"></div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                            <MudIcon Icon="@k.Icon" Style="@($"color:{k.Color}; font-size:12px;")" />
+                            <span style="color:#667788; font-size:8px; letter-spacing:2px; font-weight:700;">@k.Label</span>
+                        </div>
+                        <div style="color:@(k.Color); font-size:18px; font-weight:900;
+                                    font-family:'Orbitron',monospace;">@k.Value</div>
+                    </div>
+                }
+            </div>
+
+            @* ── Search Box ── *@
+            <div style="padding:12px 28px 0; flex-shrink:0;">
+                <MudTextField @bind-Value="_search"
+                              Placeholder="Search all columns…"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              AdornmentColor="Color.Info"
+                              Variant="MudVariant.Outlined"
+                              Clearable="true"
+                              Immediate="true"
+                              FullWidth="true"
+                              Style="background:#0b1422; border-radius:10px; color:#e0eaf8; font-size:13px;" />
+            </div>
+
+            @* ── Scrollable Records Table ── *@
+            <div style="flex:1; overflow-y:auto; padding:14px 28px 28px;">
+                <MudDataGrid T="LccNcrcarsTblDto"
+                             Items="@FilteredItems"
+                             Filterable="false"
+                             SortMode="SortMode.Multiple"
+                             Dense="true"
+                             Hover="true"
+                             RowsPerPage="15"
+                             Style="background:#0d1a2e; border:1px solid #0d2137; border-radius:12px; overflow:hidden;">
+                    <Columns>
+                        <PropertyColumn Property="x => x.NcrcarNo" Title="NCR/CAR No"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:12px;" />
+                        <PropertyColumn Property="x => x.NcrType" Title="Type"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#00d4ff; font-size:12px;" />
+                        <PropertyColumn Property="x => x.ProblemStatementCategory" Title="Category"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#ffaa00; font-size:12px;" />
+                        <TemplateColumn Title="Status" SortBy="x => x.Status"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var isClosed = context.Item.Status?.Equals("Closed Completed",    StringComparison.OrdinalIgnoreCase) == true ||
+                                                   context.Item.Status?.Equals("Closed-Cancellation", StringComparison.OrdinalIgnoreCase) == true;
+                                    var sc = isClosed ? "#00ff88" : "#ffaa00";
+                                }
+                                <div style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                                            border-radius:12px; background:@(sc)15; border:1px solid @(sc)44;">
+                                    <div style="width:5px; height:5px; border-radius:50%; background:@sc;"></div>
+                                    <span style="color:@sc; font-size:10px; font-weight:700;">
+                                        @(context.Item.Status ?? "—")
+                                    </span>
+                                </div>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Bay"            Title="Bay"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:11px;" />
+                        <PropertyColumn Property="x => x.Department"     Title="Department"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#e0eaf8; font-size:11px;" />
+                        <PropertyColumn Property="x => x.CarOwner"       Title="CAR Owner"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#aa55ff; font-size:11px;" />
+                        <PropertyColumn Property="x => x.IssueBy"        Title="Issued By"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#8899aa; font-size:11px;" />
+                        <PropertyColumn Property="x => x.IssueDate"      Title="Issue Date"
+                                        Format="MM/dd/yyyy"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#8899aa; font-family:monospace; font-size:11px;" />
+                        <TemplateColumn Title="Closure" SortBy="x => x.ClosureStatus"
+                                        HeaderStyle="white-space:nowrap;">
+                            <CellTemplate>
+                                @{
+                                    var cs = context.Item.ClosureStatus ?? "";
+                                    var cc = cs.Contains("Overdue", StringComparison.OrdinalIgnoreCase) ? "#ff4444"
+                                           : string.IsNullOrEmpty(cs) ? "#334455"
+                                           : "#00ff88";
+                                }
+                                <span style="color:@cc; font-size:10px; font-weight:600;">
+                                    @(string.IsNullOrEmpty(cs) ? "—" : cs)
+                                </span>
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.ProblemStatement" Title="Problem"
+                                        HeaderStyle="white-space:nowrap;"
+                                        CellStyle="color:#c8d8e8; font-size:11px;" />
+                    </Columns>
+                    <PagerContent>
+                        <MudDataGridPager T="LccNcrcarsTblDto" PageSizeOptions="new[] { 15, 30, 50 }" />
+                    </PagerContent>
+                </MudDataGrid>
+            </div>
+
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter]          public  NcrCarGroupSummary  Group     { get; set; } = null!;
+
+    private string _search = "";
+
+    private IEnumerable<LccNcrcarsTblDto> FilteredItems =>
+        string.IsNullOrWhiteSpace(_search)
+            ? Group.Items
+            : Group.Items.Where(x =>
+                Contains(x.NcrcarNo)                  ||
+                Contains(x.NcrType)                   ||
+                Contains(x.ProblemStatementCategory)  ||
+                Contains(x.Status)                    ||
+                Contains(x.Bay)                       ||
+                Contains(x.Department)                ||
+                Contains(x.CarOwner)                  ||
+                Contains(x.IssueBy)                   ||
+                Contains(x.IssueDate.ToString("MM/dd/yyyy")) ||
+                Contains(x.ClosureStatus)             ||
+                Contains(x.ProblemStatement));
+
+    private bool Contains(string? value) =>
+        value?.Contains(_search, StringComparison.OrdinalIgnoreCase) == true;
+
+    private string _accentColor => Group.SectionType == "NCR" ? "#ff6b35" : "#aa55ff";
+    private string _sectionIcon => Group.SectionType == "NCR"
+        ? Icons.Material.Filled.ReportProblem
+        : Icons.Material.Filled.Verified;
+
+    // ── Email report ──────────────────────────────────────────────────────
+    private bool   _showEmailPanel = false;
+    private string _emailTo        = string.Empty;
+    private string _emailNote      = string.Empty;
+    private bool   _sendingEmail   = false;
+
+    private async Task SendEmailReportAsync()
+    {
+        _sendingEmail = true;
+        StateHasChanged();
+        try
+        {
+            await EmailReportService.SendNcrCarReportAsync(
+                _emailTo, Group.SectionType, Group.GroupTitle, Group.Items, _emailNote);
+            Snackbar.Add($"{Group.SectionType} report sent successfully!", Severity.Success, cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.MarkEmailRead;
+                cfg.VisibleStateDuration = 4000;
+            });
+            _showEmailPanel = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to send: {ex.Message}", Severity.Error, cfg =>
+            {
+                cfg.Icon = Icons.Material.Filled.ErrorOutline;
+                cfg.VisibleStateDuration = 6000;
+            });
+        }
+        finally { _sendingEmail = false; StateHasChanged(); }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

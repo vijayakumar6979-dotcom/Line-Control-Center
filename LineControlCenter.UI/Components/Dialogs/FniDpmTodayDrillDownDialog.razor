@@ -1,0 +1,549 @@
+@using LineControlCenter.Application.DTOs
+@using LineControlCenter.Application.Queries.TestData
+@using MudBlazor
+@using Radzen.Blazor
+@using Radzen
+@using MediatR
+@inject ISender Sender
+@inject IJSRuntime JS
+@inject LineControlCenter.Application.Interfaces.IEmailReportService EmailReportService
+@inject ISnackbar Snackbar
+
+<MudDialog Style="background:#060d1f; border-radius:20px; overflow:hidden;">
+    <DialogContent>
+        <div style="display:flex; flex-direction:column; height:90vh; max-height:90vh;">
+
+            @* ── Header ── *@
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:18px 24px 14px; flex-shrink:0;
+                        background:linear-gradient(135deg,#0d1f3c 0%,#060d1f 100%);
+                        border-bottom:1px solid #f59e0b22;">
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <div style="width:44px; height:44px; border-radius:14px;
+                                background:linear-gradient(135deg,#f59e0b20,#f59e0b06);
+                                border:1px solid #f59e0b44;
+                                display:flex; align-items:center; justify-content:center;">
+                        <MudIcon Icon="@Icons.Material.Filled.Today" Style="color:#f59e0b; font-size:24px;" />
+                    </div>
+                    <div>
+                        <div style="color:#f59e0b; font-family:'Orbitron',sans-serif;
+                                    font-size:15px; font-weight:800; letter-spacing:3px;">
+                            FNI DPM ANALYTICS · TODAY
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:3px; flex-wrap:wrap;">
+                            <span style="color:#7ab3cc; font-size:10px; letter-spacing:1px;">@Customer</span>
+                            @if (!string.IsNullOrEmpty(Family))
+                            {
+                                <span style="color:#3d6b8a;">·</span>
+                                <span style="color:#7ab3cc; font-size:10px; letter-spacing:1px;">@Family</span>
+                            }
+                            <span style="color:#3d6b8a;">·</span>
+                            <span style="color:#7ab3cc; font-size:10px; letter-spacing:1px;">
+                                @DateTime.Today.ToString("dddd, MMMM dd, yyyy")
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <MudTooltip Text="Send Report by Email" Placement="Placement.Bottom">
+                        <MudIconButton Icon="@Icons.Material.Filled.Email"
+                                       Size="MudSize.Small"
+                                       Style="@($"color:#f59e0b; background:{(_showEmailPanel ? "#f59e0b22" : "#0d1f3c")}; border:1px solid {(_showEmailPanel ? "#f59e0b66" : "#1a3a5c")}; border-radius:10px; width:36px; height:36px;")"
+                                       OnClick="() => _showEmailPanel = !_showEmailPanel" />
+                    </MudTooltip>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Size="MudSize.Small"
+                                   Style="color:#e8f4f8; background:#0d1f3c; border:1px solid #1a3a5c;
+                                          border-radius:10px; width:36px; height:36px;"
+                                   OnClick="Cancel" />
+                </div>
+            </div>
+
+            @* ── Email compose panel ── *@
+            @if (_showEmailPanel)
+            {
+                <div style="padding:14px 24px; background:#070f1e; border-bottom:1px solid #f59e0b22; flex-shrink:0;">
+                    <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:200px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">TO (separate multiple by comma or semicolon)</div>
+                            <MudTextField @bind-Value="_emailTo"
+                                          Placeholder="user@example.com"
+                                          Variant="MudBlazor.Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Style="background:#0a1628;"
+                                          Disabled="@_sendingEmail" />
+                        </div>
+                        <div style="flex:2; min-width:200px;">
+                            <div style="color:#7ab3cc; font-size:9px; letter-spacing:2px; margin-bottom:4px;">NOTE (optional)</div>
+                            <MudTextField @bind-Value="_emailNote"
+                                          Placeholder="Add a note..."
+                                          Variant="MudBlazor.Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Style="background:#0a1628;"
+                                          Disabled="@_sendingEmail" />
+                        </div>
+                        <MudButton Variant="MudBlazor.Variant.Filled"
+                                   Style="background:#f59e0b; color:#000; border-radius:10px; height:40px; min-width:140px; font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:1px;"
+                                   OnClick="SendEmailReportAsync"
+                                   Disabled="@(_sendingEmail || string.IsNullOrWhiteSpace(_emailTo))">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                @if (_sendingEmail)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width:16px; height:16px; color:#000;" />
+                                    <span>SENDING...</span>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Send" Style="font-size:16px;" />
+                                    <span>SEND REPORT</span>
+                                }
+                            </div>
+                        </MudButton>
+                    </div>
+                </div>
+            }
+
+            @* ── Scrollable body ── *@
+            <div style="flex:1; overflow-y:auto; padding:20px 24px 24px;">
+
+                @if (_loading)
+                {
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:300px; gap:20px;">
+                        <MudProgressCircular Color="Color.Warning" Size="Size.Large" Indeterminate="true" />
+                        <span style="color:#7ab3cc; font-size:12px; letter-spacing:2px; font-family:'Orbitron',sans-serif;">LOADING ANALYTICS...</span>
+                    </div>
+                }
+                else
+                {
+                    @* ── KPI CARDS ROW — always visible ── *@
+                    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;">
+                        @KpiCard("TODAY DPM",     Summary.DpmRate.ToString("F0"),    DpmColor(Summary.DpmRate),  "RIGHT NOW",     "#f59e0b", Icons.Material.Filled.BugReport)
+                        @KpiCard("YESTERDAY DPM", _yesterdayDpm.ToString("F0"),      "#7ab3cc",                  "PREV DAY",      "#7ab3cc", Icons.Material.Filled.History)
+                        @KpiCard("DAY CHANGE",    DayChangeLabel,                    DayChangeColor,             DayChangeSub,    DayChangeColor, Icons.Material.Filled.TrendingUp)
+                        @KpiCard("7-DAY AVG",     _sevenDayAvg.ToString("F0"),       "#a78bfa",                  "ROLLING AVG",   "#a78bfa", Icons.Material.Filled.Analytics)
+                    </div>
+
+                    @* ── FUTURISTIC TAB BAR ── *@
+                    <div style="display:flex; gap:2px; margin-bottom:20px;
+                                background:#070f1e; border:1px solid #1a3a5c;
+                                border-radius:12px; padding:4px;">
+                        @TodayTabBtn(0, Icons.Material.Filled.AccessTime,  "HOURLY",   "#f59e0b")
+                        @TodayTabBtn(1, Icons.Material.Filled.ShowChart,   "TREND",    "#a78bfa")
+                        @TodayTabBtn(2, Icons.Material.Filled.Leaderboard, "RANKING",  "#22c55e")
+                        @TodayTabBtn(3, Icons.Material.Filled.TableRows,   "RAW DATA", "#7ab3cc")
+                    </div>
+
+                    @* ── TAB 0 : HOURLY DPM ── *@
+                    @if (_todayTab == 0)
+                    {
+                        <div style="@SectionStyle">
+                            <div style="@SectionHeaderStyle border-bottom-color:#f59e0b22;">
+                                <MudIcon Icon="@Icons.Material.Filled.AccessTime" Style="color:#f59e0b; font-size:18px;" />
+                                <span style="color:#f59e0b; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; letter-spacing:2px;">
+                                    HOURLY DPM — TODAY
+                                </span>
+                                <span style="color:#3d6b8a; font-size:10px; margin-left:auto;">Hour-by-hour breakdown · 00:00 → now</span>
+                            </div>
+                            <div style="padding:0 12px 16px; height:260px;">
+                                <RadzenChart Style="width:100%; height:100%;">
+                                    <RadzenChartTooltipOptions Shared="false" />
+                                    <RadzenAreaSeries Data="@_hourlyData"
+                                                     CategoryProperty="HourLabel"
+                                                     ValueProperty="DpmRate"
+                                                     Title="DPM/Hour"
+                                                     Fill="#f59e0b22"
+                                                     Stroke="#f59e0b"
+                                                     StrokeWidth="2"
+                                                     Smooth="true">
+                                        <TooltipTemplate Context="h">
+                                            <div style="padding:6px 10px; font-size:11px;">
+                                                <b style="color:#f59e0b;">@h.HourLabel</b><br />
+                                                DPM: <b style="color:@DpmColor(h.DpmRate);">@h.DpmRate.ToString("F0")</b><br />
+                                                Fail: @h.Fail / @h.Total
+                                            </div>
+                                        </TooltipTemplate>
+                                    </RadzenAreaSeries>
+                                    <RadzenValueAxis>
+                                        <RadzenGridLines Visible="true" Stroke="#1a3a5c44" />
+                                        <RadzenAxisTitle Text="DPM" />
+                                    </RadzenValueAxis>
+                                    <RadzenCategoryAxis>
+                                        <RadzenGridLines Visible="false" />
+                                    </RadzenCategoryAxis>
+                                    <RadzenLegend Visible="false" />
+                                </RadzenChart>
+                            </div>
+                        </div>
+                    }
+
+                    @* ── TAB 1 : 7-DAY TREND ── *@
+                    @if (_todayTab == 1)
+                    {
+                        <div style="@SectionStyle">
+                            <div style="@SectionHeaderStyle border-bottom-color:#a78bfa22;">
+                                <MudIcon Icon="@Icons.Material.Filled.ShowChart" Style="color:#a78bfa; font-size:18px;" />
+                                <span style="color:#a78bfa; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; letter-spacing:2px;">
+                                    7-DAY DPM TREND
+                                </span>
+                                <span style="color:#3d6b8a; font-size:10px; margin-left:auto;">Today highlighted</span>
+                            </div>
+                            <div style="padding:0 12px 16px; height:260px;">
+                                <RadzenChart Style="width:100%; height:100%;">
+                                    <RadzenChartTooltipOptions Shared="false" />
+                                    <RadzenLineSeries Data="@_sevenDayHistory"
+                                                     CategoryProperty="DayLabel"
+                                                     ValueProperty="DpmRate"
+                                                     Title="Daily DPM"
+                                                     Stroke="#a78bfa"
+                                                     StrokeWidth="2.5"
+                                                     Smooth="true">
+                                        <TooltipTemplate Context="d">
+                                            <div style="padding:6px 10px; font-size:11px;">
+                                                <b style="color:#a78bfa;">@d.DayLabel</b><br />
+                                                DPM: <b style="color:@DpmColor(d.DpmRate);">@d.DpmRate.ToString("F0")</b><br />
+                                                Fail: @d.Fail / @d.Total
+                                            </div>
+                                        </TooltipTemplate>
+                                    </RadzenLineSeries>
+                                    <RadzenValueAxis>
+                                        <RadzenGridLines Visible="true" Stroke="#1a3a5c44" />
+                                        <RadzenAxisTitle Text="DPM" />
+                                    </RadzenValueAxis>
+                                    <RadzenCategoryAxis>
+                                        <RadzenGridLines Visible="false" />
+                                    </RadzenCategoryAxis>
+                                    <RadzenLegend Visible="false" />
+                                </RadzenChart>
+                            </div>
+                        </div>
+                    }
+
+                    @* ── TAB 2 : FAMILY RANKING ── *@
+                    @if (_todayTab == 2)
+                    {
+                        <div style="@SectionStyle">
+                            <div style="@SectionHeaderStyle border-bottom-color:#22c55e22;">
+                                <MudIcon Icon="@Icons.Material.Filled.Leaderboard" Style="color:#22c55e; font-size:18px;" />
+                                <span style="color:#22c55e; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; letter-spacing:2px;">
+                                    FAMILY DPM RANKING — TODAY
+                                </span>
+                                <span style="color:#3d6b8a; font-size:10px; margin-left:auto;">All families · highest first</span>
+                            </div>
+                            <div style="padding:0 12px 16px;">
+                                @if (_familyRanking.Count == 0)
+                                {
+                                    <div style="text-align:center; color:#3d6b8a; font-size:11px; padding:40px 0;">No family data available</div>
+                                }
+                                else
+                                {
+                                    var todayMax = _familyRanking.Count > 0 && _familyRanking.Max(f => f.DpmRate) > 0 ? _familyRanking.Max(f => f.DpmRate) : 1.0;
+                                    @foreach (var (f, idx) in _familyRanking.Select((f, i) => (f, i)))
+                                    {
+                                        var pct        = Math.Min(100.0, f.DpmRate / todayMax * 100.0);
+                                        var barColor   = DpmColor(f.DpmRate);
+                                        var rankColor  = idx == 0 ? "#ff3b3b" : idx == 1 ? "#f59e0b" : "#22c55e";
+                                        var rankBg     = idx == 0 ? "#ff3b3b22" : idx == 1 ? "#f59e0b22" : "#22c55e22";
+                                        var rankBorder = idx == 0 ? "#ff3b3b44" : idx == 1 ? "#f59e0b44" : "#22c55e44";
+                                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                                            <div style="width:22px; height:22px; border-radius:6px; flex-shrink:0;
+                                                        background:@rankBg; border:1px solid @rankBorder;
+                                                        display:flex; align-items:center; justify-content:center;
+                                                        font-size:9px; font-weight:800; color:@rankColor;
+                                                        font-family:'Orbitron',sans-serif;">@(idx+1)</div>
+                                            <div style="flex:0 0 130px; color:#e8f4f8; font-size:10px; font-weight:600;
+                                                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@f.Family</div>
+                                            <div style="flex:1; background:#0d1f3c; border-radius:4px; height:8px; overflow:hidden; position:relative;">
+                                                <div style="position:absolute; left:0; top:0; height:100%; width:@(pct.ToString("F1"))%;
+                                                            background:linear-gradient(90deg,@(barColor+"88"),@barColor);
+                                                            border-radius:4px; transition:width 0.6s ease;"></div>
+                                            </div>
+                                            <div style="flex:0 0 54px; text-align:right; font-size:11px; font-weight:700;
+                                                        color:@barColor; font-family:'Orbitron',sans-serif;">@f.DpmRate.ToString("F0")</div>
+                                            <div style="flex:0 0 64px; text-align:right; color:#3d6b8a; font-size:9px;">@f.Fail/@f.Total</div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @* ── TAB 3 : RAW DATA ── *@
+                    @if (_todayTab == 3)
+                    {
+                        <div style="@SectionStyle">
+                            <div style="@SectionHeaderStyle border-bottom-color:#1a3a5c33;">
+                                <MudIcon Icon="@Icons.Material.Filled.TableRows" Style="color:#7ab3cc; font-size:18px;" />
+                                <span style="color:#7ab3cc; font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700; letter-spacing:2px;">
+                                    RAW DATA · TODAY'S RECORDS
+                                </span>
+                                <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                                    <MudTextField @bind-Value="_searchText"
+                                                  Placeholder="Search serial, status, step..."
+                                                  Variant="MudVariant.Outlined"
+                                                  Adornment="Adornment.Start"
+                                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                                  Immediate="true"
+                                                  DebounceInterval="200"
+                                                  Style="max-width:260px; font-size:11px;" />
+                                    <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                                               StartIcon="@Icons.Material.Filled.TableChart"
+                                               Style="border-color:#00ff8833; color:#00ff88; border-radius:8px; font-size:10px;"
+                                               OnClick="ExportToExcel">EXCEL</MudButton>
+                                    <MudButton Variant="MudVariant.Outlined" Size="MudSize.Small"
+                                               StartIcon="@Icons.Material.Filled.Description"
+                                               Style="border-color:#00d4ff33; color:#00d4ff; border-radius:8px; font-size:10px;"
+                                               OnClick="ExportToCsv">CSV</MudButton>
+                                </div>
+                            </div>
+                            <div style="padding:0 12px 16px;">
+                                <MudDataGrid T="FniYieldDetailDto"
+                                             Items="FilteredDetails"
+                                             SortMode="SortMode.Multiple"
+                                             Dense="true"
+                                             Hover="true"
+                                             RowsPerPage="20"
+                                             Style="background:#070f1e; border:1px solid #0d2137; border-radius:12px; overflow:hidden;">
+                                    <Columns>
+                                        <PropertyColumn Property="x => x.SerialNumber" Title="Serial #"
+                                                        CellStyle="color:#e0eaf8; font-family:monospace; font-size:11px;" />
+                                        <PropertyColumn Property="x => x.StepInstance" Title="Step"
+                                                        CellStyle="color:#f59e0b; font-size:11px; font-weight:700;" />
+                                        <PropertyColumn Property="x => x.StartTime" Title="Start Time" Format="HH:mm:ss"
+                                                        CellStyle="color:#8899aa; font-family:monospace; font-size:10px;" />
+                                        <PropertyColumn Property="x => x.EndTime" Title="End Time" Format="HH:mm:ss"
+                                                        CellStyle="color:#8899aa; font-family:monospace; font-size:10px;" />
+                                        <TemplateColumn Title="Status" SortBy="x => x.Status">
+                                            <CellTemplate>
+                                                @{
+                                                    var isPass = string.Equals(context.Item.Status, "Pass", StringComparison.OrdinalIgnoreCase);
+                                                    var sc     = isPass ? "#00ff88" : "#ff4444";
+                                                }
+                                                <div style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
+                                                            border-radius:10px; background:@(sc)15; border:1px solid @(sc)44;">
+                                                    <div style="width:5px; height:5px; border-radius:50%; background:@sc;"></div>
+                                                    <span style="color:@sc; font-size:10px; font-weight:700;">@context.Item.Status</span>
+                                                </div>
+                                            </CellTemplate>
+                                        </TemplateColumn>
+                                        <PropertyColumn Property="x => x.Family" Title="Family"
+                                                        CellStyle="color:#e0eaf8; font-size:11px;" />
+                                    </Columns>
+                                    <PagerContent>
+                                        <MudDataGridPager T="FniYieldDetailDto" PageSizeOptions="new[] { 20, 50, 100 }" />
+                                    </PagerContent>
+                                </MudDataGrid>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+<style>
+    @@keyframes lcc-spin { to { transform: rotate(360deg); } }
+    .rz-chart { background: transparent !important; }
+    .rz-chart .rz-category-axis text,
+    .rz-chart .rz-value-axis text { fill: #7ab3cc !important; font-size: 10px !important; }
+    .rz-chart .rz-tick line,
+    .rz-chart .rz-axis-line { stroke: #1a3a5c !important; }
+</style>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public FniYieldSummaryDto Summary   { get; set; } = new(0, 0, 0, 0, []);
+    [Parameter] public string             Customer  { get; set; } = string.Empty;
+    [Parameter] public string?            Family    { get; set; }
+    [Parameter] public int                DpmTarget { get; set; } = 800;
+
+    private bool   _loading    = true;
+    private string _searchText = string.Empty;
+    private int    _todayTab   = 0;   // 0=Hourly  1=Trend  2=Ranking  3=Raw Data
+
+    private List<FniDpmHourlyDto>       _hourlyData      = [];
+    private List<SevenDayPoint>         _sevenDayHistory = [];
+    private List<FniDpmFamilyRankDto>   _familyRanking   = [];
+
+    private double _yesterdayDpm = 0;
+    private double _sevenDayAvg  = 0;
+
+    private string DayChangeLabel =>
+        _yesterdayDpm == 0 ? "N/A" :
+        $"{(Summary.DpmRate < _yesterdayDpm ? "▼ " : "▲ ")}{Math.Abs((Summary.DpmRate - _yesterdayDpm) / _yesterdayDpm * 100):F0}%";
+
+    private string DayChangeSub =>
+        _yesterdayDpm == 0 ? "NO PREV DATA" :
+        (Summary.DpmRate <= _yesterdayDpm ? "IMPROVED" : "WORSENED");
+
+    private string DayChangeColor =>
+        _yesterdayDpm == 0 ? "#7ab3cc" :
+        Summary.DpmRate <= _yesterdayDpm ? "#22c55e" : "#ff3b3b";
+
+    private string SectionStyle      => "background:#0a1628; border:1px solid #1a3a5c22; border-radius:16px; overflow:hidden;";
+    private string SectionHeaderStyle => "display:flex; align-items:center; gap:10px; padding:14px 16px 10px; border-bottom:1px solid;";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var todayStart = DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Unspecified);
+            var now        = DateTime.SpecifyKind(DateTime.Now,   DateTimeKind.Unspecified);
+
+            var hourlyTask  = Sender.Send(new GetFniDpmHourlyQuery(Customer, Family));
+            var histTask    = Sender.Send(new GetFniDpmHistoryQuery(Customer, Family, 7));
+            var rankingTask = Sender.Send(new GetFniDpmFamilyRankingQuery(Customer, todayStart, now));
+
+            await Task.WhenAll(hourlyTask, histTask, rankingTask);
+
+            // Hourly
+            var hourlyResult = await hourlyTask;
+            if (hourlyResult.IsSuccess)
+                _hourlyData = hourlyResult.Value.ToList();
+
+            // 7-day history → trend + yesterday + 7-day avg
+            var histResult = await histTask;
+            if (histResult.IsSuccess)
+            {
+                var days = histResult.Value.ToList();
+                _sevenDayHistory = days
+                    .Select(d => new SevenDayPoint(d.Day.ToString("MM/dd"), d.Total, d.Fail, d.DpmRate))
+                    .ToList();
+
+                var yesterday = days.FirstOrDefault(d => d.Day == DateOnly.FromDateTime(DateTime.Today.AddDays(-1)));
+                _yesterdayDpm = yesterday?.DpmRate ?? 0;
+                _sevenDayAvg  = days.Count > 0 ? Math.Round(days.Average(d => d.DpmRate), 1) : 0;
+            }
+
+            // Family ranking
+            var rankResult = await rankingTask;
+            if (rankResult.IsSuccess)
+                _familyRanking = rankResult.Value.ToList();
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private IEnumerable<FniYieldDetailDto> FilteredDetails =>
+        string.IsNullOrWhiteSpace(_searchText)
+            ? Summary.Details
+            : Summary.Details.Where(x =>
+                (x.SerialNumber ?? "").Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                (x.Status       ?? "").Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                (x.StepInstance ?? "").Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                (x.Family       ?? "").Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+
+    private string DpmColor(double dpm) =>
+        dpm >= DpmTarget       ? "#ff3b3b" :
+        dpm >= DpmTarget * 0.5 ? "#f59e0b" : "#22c55e";
+
+    // ── Email report ───────────────────────────────────────────────────────
+    private bool   _showEmailPanel = false;
+    private string _emailTo        = string.Empty;
+    private string _emailNote      = string.Empty;
+    private bool   _sendingEmail   = false;
+
+    private async Task SendEmailReportAsync()
+    {
+        _sendingEmail = true;
+        StateHasChanged();
+        try
+        {
+            var report = new DpmReportDto(
+                ToAddresses:  _emailTo,
+                PeriodLabel:  "Today",
+                DateRangeLabel: DateTime.Today.ToString("dddd, MMMM dd, yyyy"),
+                Customer:     Customer,
+                Family:       Family,
+                CurrentDpm:   Summary.DpmRate,
+                PreviousDpm:  _yesterdayDpm,
+                RollingAvgDpm: _sevenDayAvg,
+                FamilyRanking: _familyRanking,
+                RawDetails:   Summary.Details,
+                Note:         _emailNote
+            );
+            await EmailReportService.SendDpmReportAsync(report);
+            Snackbar.Add("Report sent successfully!", Severity.Success, cfg =>
+            {
+                cfg.Icon                  = Icons.Material.Filled.MarkEmailRead;
+                cfg.VisibleStateDuration  = 4000;
+                cfg.HideTransitionDuration = 300;
+            });
+            _showEmailPanel = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to send report: {ex.Message}", Severity.Error, cfg =>
+            {
+                cfg.Icon                  = Icons.Material.Filled.ErrorOutline;
+                cfg.VisibleStateDuration  = 6000;
+                cfg.HideTransitionDuration = 300;
+            });
+        }
+        finally
+        {
+            _sendingEmail = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task ExportToCsv()
+    {
+        var rows = FilteredDetails.ToList();
+        var sb   = new System.Text.StringBuilder();
+        sb.AppendLine("Serial Number,Step,Start Time,End Time,Status,Family");
+        foreach (var r in rows)
+            sb.AppendLine($"\"{Esc(r.SerialNumber)}\",\"{Esc(r.StepInstance)}\",\"{r.StartTime:MM/dd/yyyy HH:mm:ss}\",\"{r.EndTime:MM/dd/yyyy HH:mm:ss}\",\"{Esc(r.Status)}\",\"{Esc(r.Family)}\"");
+        var b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+        await JS.InvokeVoidAsync("lccDownloadFile", $"LCC_DPM_Today_{DateTime.Now:yyyyMMdd_HHmmss}.csv", b64, "text/csv");
+    }
+
+    private async Task ExportToExcel()
+    {
+        var rows = FilteredDetails.ToList();
+        var sb   = new System.Text.StringBuilder();
+        sb.AppendLine("Serial Number\tStep\tStart Time\tEnd Time\tStatus\tFamily");
+        foreach (var r in rows)
+            sb.AppendLine($"{r.SerialNumber}\t{r.StepInstance}\t{r.StartTime:MM/dd/yyyy HH:mm:ss}\t{r.EndTime:MM/dd/yyyy HH:mm:ss}\t{r.Status}\t{r.Family}");
+        var b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+        await JS.InvokeVoidAsync("lccDownloadFile", $"LCC_DPM_Today_{DateTime.Now:yyyyMMdd_HHmmss}.xls", b64, "application/vnd.ms-excel");
+    }
+
+    private static string Esc(string? v) => (v ?? string.Empty).Replace("\"", "\"\"");
+
+    private RenderFragment KpiCard(string label, string value, string valueColor, string sub, string accentColor, string icon) =>
+        @<div style="background:#0a1628; border:1px solid #1a3a5c; border-radius:14px;
+                    padding:16px 14px; position:relative; overflow:hidden;">
+            <div style="position:absolute; top:0; left:0; right:0; height:2px;
+                        background:linear-gradient(90deg, @accentColor, transparent);"></div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                <MudIcon Icon="@icon" Style="@($"color:{accentColor}; font-size:16px;")" />
+                <span style="color:#7ab3cc; font-size:8px; letter-spacing:2px; font-weight:700;">@label</span>
+            </div>
+            <div style="@($"color:{valueColor}; font-size:clamp(20px,2.5vw,28px); font-weight:900; font-family:'Orbitron',sans-serif; line-height:1;")">
+                @value
+            </div>
+            <div style="color:#3d6b8a; font-size:8px; letter-spacing:1px; margin-top:6px;">@sub</div>
+        </div>;
+
+    private sealed record SevenDayPoint(string DayLabel, int Total, int Fail, double DpmRate);
+
+    private RenderFragment TodayTabBtn(int index, string icon, string label, string activeColor) =>
+        @<button style="flex:1; display:flex; align-items:center; justify-content:center; gap:7px;
+                        padding:8px 0; border-radius:9px; border:none; cursor:pointer; font-family:'Orbitron',sans-serif;
+                        font-size:9px; font-weight:700; letter-spacing:1.5px; transition:all 0.2s;
+                        background:@(_todayTab == index ? activeColor + "22" : "transparent");
+                        color:@(_todayTab == index ? activeColor : "#3d6b8a");
+                        border:1px solid @(_todayTab == index ? activeColor + "44" : "transparent");"
+                @onclick="() => _todayTab = index">
+            <MudIcon Icon="@icon" Style="@($"font-size:14px; color:{(_todayTab == index ? activeColor : "#3d6b8a")};")" />
+            @label
+        </button>;
+}
