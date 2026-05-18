@@ -85,13 +85,13 @@
                     </span>
                 </div>
             </div>
-            <div style="color:#00d4ff;
+            <div style="color:@QrqcCountColor;
                         font-family:'Orbitron',sans-serif;
                         font-size:clamp(40px,5.5vw,68px);
                         font-weight:900;
                         line-height:1;
                         letter-spacing:4px;
-                        text-shadow:0 0 36px #00d4ffaa, 0 0 72px #00d4ff33;">
+                        text-shadow:0 0 36px @(QrqcCountColor)aa, 0 0 72px @(QrqcCountColor)33;">
                 @QrqcTickets.Count
             </div>
             <div style="color:#00d4ff99; font-size:clamp(8px,0.9vw,10px);
@@ -125,23 +125,18 @@
                     <span style="color:#22c55e; font-size:8px; font-weight:700; letter-spacing:1px;">GOOD</span>
                 </div>
             </div>
-            <div style="color:#a855f7;
+            <div style="color:#22c55e;
                         font-family:'Orbitron',sans-serif;
                         font-size:clamp(40px,5.5vw,68px);
                         font-weight:900;
                         line-height:1;
                         letter-spacing:4px;
-                        text-shadow:0 0 36px #a855f7aa, 0 0 72px #a855f733;">
+                        text-shadow:0 0 36px #22c55eaa, 0 0 72px #22c55e33;">
                 0
             </div>
-            <div style="color:#a855f799; font-size:clamp(8px,0.9vw,10px);
+            <div style="color:#00d4ff99; font-size:clamp(8px,0.9vw,10px);
                         letter-spacing:2px; margin-top:6px; font-weight:700;">
                 THIS WEEK
-            </div>
-            <div style="margin-top:8px;">
-                <span style="color:#a855f766; font-size:9px; letter-spacing:1px;">
-                    COMING SOON
-                </span>
             </div>
         </div>
 
@@ -168,16 +163,16 @@
                     <span style="color:#22c55e; font-size:8px; font-weight:700; letter-spacing:1px;">GOOD</span>
                 </div>
             </div>
-            <div style="color:#f59e0b;
+            <div style="color:#22c55e;
                         font-family:'Orbitron',sans-serif;
                         font-size:clamp(40px,5.5vw,68px);
                         font-weight:900;
                         line-height:1;
                         letter-spacing:4px;
-                        text-shadow:0 0 36px #f59e0baa, 0 0 72px #f59e0b33;">
+                        text-shadow:0 0 36px #22c55eaa, 0 0 72px #22c55e33;">
                 0
             </div>
-            <div style="color:#f59e0b99; font-size:clamp(8px,0.9vw,10px);
+            <div style="color:#00d4ff99; font-size:clamp(8px,0.9vw,10px);
                         letter-spacing:2px; margin-top:6px; font-weight:700;">
                 THIS WEEK
             </div>
@@ -205,6 +200,10 @@
             return $"{monday:dd MMM} – {sunday:dd MMM}";
         }
     }
+
+    private string QrqcCountColor => QrqcTickets.Count == 0  ? "#22c55e"
+                                    : QrqcTickets.Count <= 3 ? "#f59e0b"
+                                                             : "#ff3b3b";
 
     private string QrqcMoodColor => QrqcTickets.Count == 0 ? "#22c55e"
                                   : QrqcTickets.Count <= 3 ? "#f59e0b"
